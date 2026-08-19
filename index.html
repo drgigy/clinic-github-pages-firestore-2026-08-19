@@ -1139,11 +1139,20 @@
       const firebaseApp = initializeApp(firebaseConfig);
       const db = getFirestore(firebaseApp);
       const auth = getAuth(firebaseApp);
-      const patientsCollection = collection(db, "patients");
-      const accountsCollection = collection(db, "accounts");
-      const medicalRecordsCollection = collection(db, "medicalRecords");
-      const neuroStatsCollection = collection(db, "neuroMonthlyStats");
-      const settingsDocRef = doc(db, "settings", "clinic");
+      function currentUserId() {
+        const uid = auth.currentUser?.uid;
+        if (!uid) throw new Error("A signed-in user is required for Firestore access.");
+        return uid;
+      }
+      function userCollection(collectionName) {
+        return collection(db, "users", currentUserId(), collectionName);
+      }
+      function userDoc(collectionName, documentId) {
+        return doc(db, "users", currentUserId(), collectionName, documentId);
+      }
+      function userSettingsDoc() {
+        return doc(db, "users", currentUserId(), "settings", "clinic");
+      }
       const todayKey = localDateKey();
       let selectedDate = todayKey;
       let activeFilter = "all";
@@ -1310,56 +1319,56 @@
       }
       async function savePatientToCloud(patient) {
         try {
-          await setDoc(doc(db, "patients", patient.id), patient, { merge: true });
+          await setDoc(userDoc("patients", patient.id), patient, { merge: true });
         } catch (error) {
           console.error("Firebase save failed", error);
         }
       }
       async function deletePatientFromCloud(id) {
         try {
-          await deleteDoc(doc(db, "patients", id));
+          await deleteDoc(userDoc("patients", id));
         } catch (error) {
           console.error("Firebase delete failed", error);
         }
       }
       async function saveAccountToCloud(entry) {
         try {
-          await setDoc(doc(db, "accounts", entry.id), entry, { merge: true });
+          await setDoc(userDoc("accounts", entry.id), entry, { merge: true });
         } catch (error) {
           console.error("Firebase account save failed", error);
         }
       }
       async function saveMedicalRecordToCloud(record) {
         try {
-          await setDoc(doc(db, "medicalRecords", record.id), record, { merge: true });
+          await setDoc(userDoc("medicalRecords", record.id), record, { merge: true });
         } catch (error) {
           console.error("Firebase medical record save failed", error);
         }
       }
       async function saveNeuroStatToCloud(entry) {
         try {
-          await setDoc(doc(db, "neuroMonthlyStats", entry.id), entry, { merge: true });
+          await setDoc(userDoc("neuroMonthlyStats", entry.id), entry, { merge: true });
         } catch (error) {
           console.error("Firebase neurodiagnostics save failed", error);
         }
       }
       async function deleteMedicalRecordFromCloud(id) {
         try {
-          await deleteDoc(doc(db, "medicalRecords", id));
+          await deleteDoc(userDoc("medicalRecords", id));
         } catch (error) {
           console.error("Firebase medical record delete failed", error);
         }
       }
       async function deleteAccountFromCloud(id) {
         try {
-          await deleteDoc(doc(db, "accounts", id));
+          await deleteDoc(userDoc("accounts", id));
         } catch (error) {
           console.error("Firebase account delete failed", error);
         }
       }
       async function deleteNeuroStatFromCloud(id) {
         try {
-          await deleteDoc(doc(db, "neuroMonthlyStats", id));
+          await deleteDoc(userDoc("neuroMonthlyStats", id));
         } catch (error) {
           console.error("Firebase neurodiagnostics delete failed", error);
         }
@@ -1367,6 +1376,11 @@
       function startFirebaseSync() {
         if (firebaseSyncStarted) return;
         firebaseSyncStarted = true;
+        const patientsCollection = userCollection("patients");
+        const accountsCollection = userCollection("accounts");
+        const medicalRecordsCollection = userCollection("medicalRecords");
+        const neuroStatsCollection = userCollection("neuroMonthlyStats");
+        const settingsDocRef = userSettingsDoc();
         const patientsQuery = query(patientsCollection, orderBy("date", "desc"));
         firebaseUnsubscribers.push(onSnapshot(patientsQuery, (snapshot) => {
           patients = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
@@ -1495,7 +1509,7 @@
         if (patch.patientComments !== undefined) writeStore(patientCommentsStore, JSON.stringify(patientComments()));
         if (patch.clinicName !== undefined) writeStore(clinicNameStore, patch.clinicName || "");
         if (patch.clinicNameStyle !== undefined) writeStore(clinicNameStyleStore, JSON.stringify(clinicNameStyle()));
-        await setDoc(settingsDocRef, { ...patch, updatedAt: new Date().toISOString() }, { merge: true });
+        await setDoc(userSettingsDoc(), { ...patch, updatedAt: new Date().toISOString() }, { merge: true });
         renderCommentSelects();
         renderSettingsComments();
         renderClinicName();
