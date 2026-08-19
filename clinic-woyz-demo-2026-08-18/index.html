@@ -597,7 +597,6 @@
               <button class="secondary" data-scroll="followup" type="button">Follow-up List</button>
               <button class="secondary" data-scroll="report" type="button">Monthly Report</button>
               <button class="secondary" type="button" data-main-tab="whatsapp">WhatsApp Preview</button>
-              <button class="secondary" type="button" id="openNeuroBtn">Neurodiagnostics</button>
               <button class="secondary" type="button" id="openSettingsBtn">Settings</button>
               <button class="secondary sign-out" id="logoutBtn" type="button">Sign out</button>
             </nav>
@@ -800,9 +799,7 @@
                   Bank account / expense category
                   <select id="accountBank">
                     <option>Demo Clinic Bank</option>
-                    <option>Neurodiagnostics account</option>
                     <option>SBI Doctor account</option>
-                    <option>SBI neurodiagnostic account</option>
                     <option>ICICI Doctor account</option>
                     <option>Staff salary</option>
                     <option>Rent</option>
@@ -4759,7 +4756,7 @@ $("#authorizationKey").focus();
             <div class="report-row"><span>Consultation income</span><strong>Cash ${money(clinic.consultCash)} · GPay ${money(clinic.consultGpay)} · Card ${money(clinic.consultCard)} · Total ${money(clinic.consultTotal)}</strong></div>
             <div class="report-row"><span>Test income</span><strong>Cash ${money(clinic.testCash)} · GPay ${money(clinic.testGpay)} · Card ${money(clinic.testCard)} · Total ${money(clinic.testTotal)}</strong></div>
             <div class="report-row"><span>Total by payment mode</span><strong>Cash ${money(clinic.cashTotal)} · GPay ${money(clinic.gpayTotal)} · Card ${money(clinic.cardTotal)}</strong></div>
-            <div class="report-row"><span>Auto bank credit</span><strong>Demo Clinic Bank: GPay ${money(autoDoctorGpay)} · Card ${money(autoDoctorCard)} · Total ${money(autoDoctorCredit)}<br />Neurodiagnostics account: GPay ${money(autoNeuroGpay)} · Card ${money(autoNeuroCard)} · Total ${money(autoNeuroCredit)}</strong></div>
+            <div class="report-row"><span>Auto bank credit</span><strong>Demo Clinic Bank: GPay ${money(autoDoctorGpay)} · Card ${money(autoDoctorCard)} · Total ${money(autoDoctorCredit)}</strong></div>
             <div class="report-row"><span>Expense categories</span><strong>${categoryText}</strong></div>
             <div class="report-row"><span>Manual bank remittance</span><strong>Cash ${money(account.cashRemittance)} · GPay ${money(account.gpayRemittance)} · Card ${money(account.cardRemittance)} · Cheque ${money(account.chequeRemittance)} · ${bankText}</strong></div>
           </div>
@@ -5407,7 +5404,7 @@ $("#authorizationKey").focus();
           <tr><td>Tests</td><td>${money(clinic.testCash)}</td><td>${money(clinic.testGpay)}</td><td>${money(clinic.testCard)}</td><td>${money(clinic.testTotal)}</td></tr>
           <tr><th>Total</th><th>${money(clinic.cashTotal)}</th><th>${money(clinic.gpayTotal)}</th><th>${money(clinic.cardTotal)}</th><th>${money(clinic.grandTotal)}</th></tr></table>
           <h2>Auto Bank Credit</h2>
-          <table><tr><th>Account</th><th>GPay</th><th>Card</th><th>Total</th></tr><tr><td>Demo Clinic Bank</td><td>${money(autoDoctorGpay)}</td><td>${money(autoDoctorCard)}</td><td>${money(autoDoctorCredit)}</td></tr><tr><td>Neurodiagnostics account</td><td>${money(autoNeuroGpay)}</td><td>${money(autoNeuroCard)}</td><td>${money(autoNeuroCredit)}</td></tr></table>
+          <table><tr><th>Account</th><th>GPay</th><th>Card</th><th>Total</th></tr><tr><td>Demo Clinic Bank</td><td>${money(autoDoctorGpay)}</td><td>${money(autoDoctorCard)}</td><td>${money(autoDoctorCredit)}</td></tr></table>
           <h2>Expense Categories</h2><table><tr><th>Category</th><th>Amount</th></tr>${expenseRows}</table>
           <h2>Manual Bank Remittance</h2>
           <table><tr><th>Mode</th><th>Amount</th></tr><tr><td>Cash</td><td>${money(account.cashRemittance)}</td></tr><tr><td>GPay</td><td>${money(account.gpayRemittance)}</td></tr><tr><td>Card</td><td>${money(account.cardRemittance)}</td></tr><tr><td>Cheque</td><td>${money(account.chequeRemittance)}</td></tr></table>
