@@ -2,14 +2,12 @@
 
 This is a standalone demo copy of Clinic WOYZ.
 
-- Demo doctor: Dr Arjun Menon MD, DM
-- Demo credentials only
 - Demo patients only
 - Demo prescriptions only
 - Demo accounts and neurodiagnostic finance data only
 - Smart Chart includes chronological lab data with charts
 - Data is stored in browser local storage under `clinicWoyzDemo.*`
-- No Firebase import, login, or cloud sync is used in this demo copy
+- No cloud import, login, or sync is used in this demo copy
 
 Open `index.html` in a browser to run the demo.
 
