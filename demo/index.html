@@ -569,7 +569,7 @@
       <div class="compact-nav" id="today">
         <div class="nav-left">
           <div class="clinic-name-display" id="clinicNameDisplay"></div>
-          <input class="doctor-phone-hidden" id="doctorPhone" value="919000001111" aria-label="Doctor WhatsApp number" />
+          <input class="doctor-phone-hidden" id="doctorPhone" value="" aria-label="Doctor WhatsApp number" />
           <span class="signed-in-user" id="signedInUser"></span>
         </div>
         <div class="main-tabs" aria-label="Clinic workspace">
@@ -1481,7 +1481,7 @@
         writeStore(demoNeuroStatsStore, JSON.stringify(demoNeuroStats));
         writeStore(doctorCredentialsStore, demoDoctorCredentials);
         writeStore(clinicNameStore, demoClinicName);
-        writeStore(phoneKey, "919000001111");
+        writeStore(phoneKey, "");
         writeStore(patientCommentsStore, JSON.stringify(["Demo patient", "VIP", "Follow-up needed"]));
 	        writeStore(`${demoStoragePrefix}seeded.v1`, demoSeedVersion);
       }
@@ -1503,7 +1503,7 @@
       $("#neuroAnalysisFromMonth").value = selectedDate.slice(0, 7);
       $("#neuroAnalysisToMonth").value = selectedDate.slice(0, 7);
       $("#neuroAnalysisYear").value = selectedDate.slice(0, 4);
-      $("#doctorPhone").value = readStore(phoneKey, "919000001111");
+      $("#doctorPhone").value = readStore(phoneKey, "");
 
       function dateLabel(dateKey) {
         return new Date(`${dateKey}T00:00:00`).toLocaleDateString("en-GB", { weekday: "long", day: "2-digit", month: "short", year: "numeric" });
@@ -2942,9 +2942,7 @@ ${context}`;
       }
       function medicalPrintSignature(extraClass = "") {
         const credentials = doctorCredentialsPrintHtml();
-        const whatsappLine = extraClass.includes("prescription-header-signature")
-          ? `<div>WhatsApp: 9000001111</div>`
-          : "";
+        const whatsappLine = "";
         return credentials || whatsappLine ? `<div class="medical-signature ${extraClass}">${credentials}${whatsappLine}</div>` : "";
       }
       function medicalPrintFooter() {
