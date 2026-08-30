@@ -581,7 +581,7 @@
         <p>Sign in with the clinic account created for this app.</p>
         <form id="loginForm">
           <label>Email address<input id="loginEmail" type="email" required autocomplete="username" value="democlinic@woyz.in" /></label>
-          <label>Password<input id="loginPassword" type="password" required autocomplete="current-password" /></label>
+          <label>Password<input id="loginPassword" type="password" required autocomplete="current-password" value="Pass@123" /></label>
           <div class="login-error" id="loginError" role="alert"></div>
           <div class="login-status" id="loginStatus">Checking secure access...</div>
           <button class="primary" id="loginButton" type="submit">Sign in</button>
@@ -5812,7 +5812,7 @@ ${context}`;
         $("#signedInUser").textContent = "";
         $("#loginStatus").textContent = "Please sign in to continue.";
         $("#loginEmail").value = "democlinic@woyz.in";
-        $("#loginPassword").value = "";
+        $("#loginPassword").value = "Pass@123";
       });
       document.addEventListener("blur", (event) => { if (event.target.dataset.amount) render(); }, true);
       $("#authorizationKey").value = readStore(authorizationKeyStore, "");
