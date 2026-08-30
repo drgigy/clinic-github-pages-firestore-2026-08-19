@@ -4434,7 +4434,7 @@ ${context}`;
           if (p.mode === "Teleconsultation") result.tele++;
           if (p.attendance === "Came") result.came++;
           if (p.attendance === "No show") result.noShow++;
-          if (p.attendance === "Came") result.markedAfterVisit++;
+          if (p.attendance === "Came" || hasMedicalNoteForPatientDate(p)) result.markedAfterVisit++;
           if (p.visitType === "First consultation") result.first++;
           if (p.visitType === "Review") result.review++;
           result.diagnosis[p.diagnosis] = (result.diagnosis[p.diagnosis] || 0) + 1;
@@ -4685,7 +4685,7 @@ ${context}`;
         $("#statTotal").textContent = summary.total;
         $("#statClinic").textContent = summary.clinic;
         $("#statTele").textContent = summary.tele;
-        $("#statMissed").textContent = Math.max(0, summary.total - summary.came);
+        $("#statMissed").textContent = Math.max(0, summary.total - summary.markedAfterVisit);
         $("#statMarked").textContent = summary.markedAfterVisit;
         $("#statDailyTotal").textContent = money(summary.grandTotal);
       }
