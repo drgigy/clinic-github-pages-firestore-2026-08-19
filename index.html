@@ -1625,23 +1625,40 @@
           ["Sara Mathew", "46", "Female", "Stroke", "First consultation"],
           ["Arun Varghese", "63", "Male", "Others", "Review"]
         ];
-        return names.slice(0, Math.max(0, 6 - existingRows.length)).map(([name, age, sex, diagnosis, visitType], index) => ({
-          id: `sample-queue-${selectedDate}-${index + 1}`,
-          patientId: `DEMO${String(index + 1).padStart(3, "0")}`,
-          date: selectedDate,
-          name,
-          age,
-          sex,
-          mobile: "",
-          comments: ["Sample"],
-          customDiagnosis: "",
-          visitType,
-          mode: "In clinic",
-          attendance: "",
-          callbackStatus: "",
-          tests: [],
-          sampleOnly: true
-        }));
+        const existingIds = new Set(existingRows.map((patient) => patient.id));
+        const samples = names.map(([name, age, sex, diagnosis, visitType], index) => ({
+            id: `sample-queue-${selectedDate}-${index + 1}`,
+            patientId: `DEMO${String(index + 1).padStart(3, "0")}`,
+            date: selectedDate,
+            name,
+            age,
+            sex,
+            mobile: "",
+            comments: ["Sample"],
+            customDiagnosis: "",
+            visitType,
+            mode: "In clinic",
+            attendance: "",
+            callbackStatus: "",
+            tests: [],
+            consultAmount: "",
+            consultPayMode: "",
+            testAmount: "",
+            testPayMode: "",
+            sampleOnly: true
+          }))
+          .filter((patient) => !existingIds.has(patient.id));
+        return samples.slice(0, Math.max(0, 6 - existingRows.length));
+      }
+      async function makeSamplePatientReal(patient) {
+        if (!patient?.sampleOnly) return patient;
+        const existing = patients.find((item) => item.id === patient.id);
+        if (existing) return existing;
+        const realPatient = { ...patient, sampleOnly: false };
+        patients.push(realPatient);
+        save();
+        await savePatientToCloud(realPatient);
+        return realPatient;
       }
       function monthInRange(dateKey, startMonth, endMonth) {
         const month = dateKey?.slice(0, 7);
@@ -4273,8 +4290,8 @@ ${context}`;
         renderAfterList();
         renderPreviousRecords();
       }
-      function openMedicalRecord(patientId, recordId = "") {
-        const patient = findPatientForRecord(patientId);
+      async function openMedicalRecord(patientId, recordId = "") {
+        const patient = await makeSamplePatientReal(findPatientForRecord(patientId));
         if (!patient) return;
         if (activeAddOn && activeAddOn.recordId !== recordId) clearActiveAddOn(true);
         captureActiveDraft();
@@ -5434,7 +5451,7 @@ ${context}`;
           return;
         }
         if (button.dataset.doctorOpenPatient) {
-          openMedicalRecord(button.dataset.doctorOpenPatient);
+          await openMedicalRecord(button.dataset.doctorOpenPatient);
           return;
         }
         if (button.dataset.mainTab) {
@@ -5525,7 +5542,7 @@ ${context}`;
         if (button.dataset.callback) { const [id, callbackStatus] = button.dataset.callback.split(":"); openCallbackId = ""; updatePatient(id, { callbackStatus }); }
         if (button.dataset.pay) { const [id, field, value] = button.dataset.pay.split(":"); updatePayment(id, field, value); }
         if (button.dataset.reusePatient) reusePatient(button.dataset.reusePatient);
-        if (button.dataset.medicalRecord) openMedicalRecord(button.dataset.medicalRecord);
+        if (button.dataset.medicalRecord) await openMedicalRecord(button.dataset.medicalRecord);
         if (button.dataset.allRecords) renderAllMedicalEntries();
         if (button.dataset.printSmartChart) printActiveMedicalRecord();
         if (button.dataset.smartDeleteRow) {
@@ -5540,7 +5557,7 @@ ${context}`;
         if (button.dataset.ambientRecord) createNewMedicalEntry("ambient");
         if (button.dataset.openDraftRecord) openDraftMedicalEntry(button.dataset.openDraftRecord);
         if (button.dataset.openRecord) {
-          openMedicalRecord(activeRecordPatientId, button.dataset.openRecord);
+          await openMedicalRecord(activeRecordPatientId, button.dataset.openRecord);
         }
         if (button.dataset.ambientStart) await startAmbientRecording();
         if (button.dataset.ambientPause) pauseResumeAmbientRecording();
