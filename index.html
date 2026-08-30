@@ -94,12 +94,20 @@
         background: var(--green); color: #fff; box-shadow: inset 0 0 0 2px var(--green-dark), 0 1px 4px rgba(0, 79, 51, .22);
       }
       .choice.noshow { background: var(--danger); color: var(--danger-ink); }
-      .stats { display: grid; grid-template-columns: repeat(6, minmax(130px, 1fr)); gap: 12px; margin-bottom: 18px; }
-      .stats.doctor-stats { grid-template-columns: repeat(5, minmax(130px, 1fr)); }
+      .queue-overview { display: grid; grid-template-columns: minmax(300px, .62fr) minmax(520px, 1fr); gap: 10px; align-items: stretch; margin-bottom: 12px; }
+      .queue-overview:not(.search-visible) { grid-template-columns: 1fr; }
+      .queue-overview[hidden] { display: none !important; }
+      .queue-overview .doctor-search-panel { margin: 0; min-height: 100%; align-content: center; padding: 10px; }
+      .queue-overview .doctor-search-panel label { display: none; }
+      .queue-overview .stats { margin-bottom: 0; }
+      .queue-overview .doctor-search-row input { min-height: 36px; padding: 7px 10px; font-size: 14px; font-weight: 750; }
+      .queue-overview .doctor-search-row .secondary { min-height: 36px; }
+      .stats { display: grid; grid-template-columns: repeat(6, minmax(86px, 1fr)); gap: 8px; margin-bottom: 18px; }
+      .stats.doctor-stats { grid-template-columns: repeat(5, minmax(86px, 1fr)); }
       .stat, .section { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
-      .stat { padding: 14px; }
-      .stat span, .report-item span { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px; }
-      .stat strong { font-size: 25px; }
+      .stat { padding: 8px 10px; }
+      .stat span, .report-item span { display: block; color: var(--muted); font-size: 11px; margin-bottom: 3px; line-height: 1.15; }
+      .stat strong { font-size: 20px; line-height: 1; }
       .content-grid { display: grid; grid-template-columns: minmax(520px, 1.1fr) minmax(420px, .9fr); gap: 18px; align-items: start; }
       .section { padding: 16px; }
       .section.doctor-after-section { padding-top: 10px; }
@@ -522,6 +530,7 @@
         .main-tab { flex: 1; min-width: 0; }
         .nav-date-control { display: flex; flex-wrap: wrap; justify-content: flex-start; align-items: center; }
         .nav-date-control label { width: 180px; flex-basis: 180px; }
+        .queue-overview.search-visible { grid-template-columns: minmax(280px, .56fr) minmax(460px, 1fr); }
         .content-grid, .post-consult-block, .preview-body, .accounts-grid, .neuro-controls { grid-template-columns: 1fr; }
         .followup-row { grid-template-columns: 1fr 1fr; }
         .section.wide, .preview-area { grid-column: auto; }
@@ -537,6 +546,8 @@
         .nav-date-control label, .date-step { width: 100%; flex-basis: auto; }
         .main-tabs { display: grid; grid-template-columns: 1fr 1fr; }
         .stats, .two, .form-row, .date-control, .nav-date-control, .report-grid { grid-template-columns: 1fr; }
+        .queue-overview,
+        .queue-overview.search-visible { grid-template-columns: 1fr; gap: 10px; }
         .record-top, .record-body { grid-template-columns: 1fr; }
         .record-actions { justify-content: stretch; }
         .followup-row { grid-template-columns: 1fr; }
@@ -613,14 +624,24 @@
       <main>
         <p class="date" id="todayLabel" hidden></p>
 
-        <section class="stats" id="statsPanel" aria-label="Daily summary">
-          <div class="stat"><span>Total patients</span><strong id="statTotal">0</strong></div>
-          <div class="stat"><span>In clinic</span><strong id="statClinic">0</strong></div>
-          <div class="stat"><span>Teleconsultation</span><strong id="statTele">0</strong></div>
-          <div class="stat"><span>Missed</span><strong id="statMissed">0</strong></div>
-          <div class="stat"><span>Marked after visit</span><strong id="statMarked">0</strong></div>
-          <div class="stat" id="statDailyTotalCard"><span>Daily total</span><strong id="statDailyTotal">0</strong></div>
-        </section>
+        <div class="queue-overview" id="queueOverview">
+          <div class="doctor-search-panel" id="doctorSearchPanel" hidden>
+            <label for="doctorPatientSearch">Search previous patient</label>
+            <div class="doctor-search-row">
+              <input id="doctorPatientSearch" type="search" autocomplete="off" placeholder="Name, mobile number, or UHID" />
+              <button class="secondary" id="clearDoctorSearch" type="button">Clear</button>
+            </div>
+            <div class="doctor-search-results" id="doctorPatientSearchResults"></div>
+          </div>
+          <section class="stats" id="statsPanel" aria-label="Daily summary">
+            <div class="stat"><span>Total patients</span><strong id="statTotal">0</strong></div>
+            <div class="stat"><span>In clinic</span><strong id="statClinic">0</strong></div>
+            <div class="stat"><span>Teleconsultation</span><strong id="statTele">0</strong></div>
+            <div class="stat"><span>Missed</span><strong id="statMissed">0</strong></div>
+            <div class="stat"><span>Marked after visit</span><strong id="statMarked">0</strong></div>
+            <div class="stat" id="statDailyTotalCard"><span>Daily total</span><strong id="statDailyTotal">0</strong></div>
+          </section>
+        </div>
 
         <div class="content-grid">
           <section class="add-patient-modal" id="addPatientModal" aria-hidden="true">
@@ -735,14 +756,6 @@
 
           <section class="section wide" id="after">
             <div class="section-head" id="afterSectionHead"><h2>After Consultation</h2><div class="filters"><button class="chip active" type="button" id="afterDateLabel"></button></div></div>
-            <div class="doctor-search-panel" id="doctorSearchPanel" hidden>
-              <label for="doctorPatientSearch">Search previous patient</label>
-              <div class="doctor-search-row">
-                <input id="doctorPatientSearch" type="search" autocomplete="off" placeholder="Name, mobile number, or UHID" />
-                <button class="secondary" id="clearDoctorSearch" type="button">Clear</button>
-              </div>
-              <div class="doctor-search-results" id="doctorPatientSearchResults"></div>
-            </div>
             <div class="patient-list" id="afterList"></div>
           </section>
 
@@ -1608,11 +1621,13 @@
           ["Meera Nair", "42", "Female", "Headache", "Review"],
           ["Rohan Thomas", "58", "Male", "Parkinsons", "Review"],
           ["Anita Joseph", "34", "Female", "Epilepsy", "First consultation"],
-          ["Vivek Menon", "51", "Male", "Pain", "Review"]
+          ["Vivek Menon", "51", "Male", "Pain", "Review"],
+          ["Sara Mathew", "46", "Female", "Stroke", "First consultation"],
+          ["Arun Varghese", "63", "Male", "Others", "Review"]
         ];
         return names.slice(0, Math.max(0, 6 - existingRows.length)).map(([name, age, sex, diagnosis, visitType], index) => ({
-          id: `sample-queue-${index + 1}`,
-          patientId: `SAMPLE${index + 1}`,
+          id: `sample-queue-${selectedDate}-${index + 1}`,
+          patientId: `DEMO${String(index + 1).padStart(3, "0")}`,
           date: selectedDate,
           name,
           age,
@@ -1671,6 +1686,10 @@
       function patientLine(patient) { return `${patient.name}, ${patient.age}/${patient.sex[0]} · ID: ${patientDisplayId(patient)}`; }
       function afterPatientLine(patient) { return `${patientLine(patient)} · Mobile: ${patient.mobile || "-"}`; }
       function doctorPatientLine(patient) { return `${patient.name}, ${patient.age}/${(patient.sex || "").charAt(0) || "-"}`; }
+      function findPatientForRecord(patientId) {
+        return patients.find((patient) => patient.id === patientId)
+          || sampleQueuePatients(selectedDayPatients()).find((patient) => patient.id === patientId);
+      }
       function doctorAbbreviation(value) {
         return {
           "First consultation": "First",
@@ -1740,7 +1759,7 @@
         $("#patientSearchResults").innerHTML = `<div class="empty">Previous patient selected. Save Patient will add a new appointment for ${dateLabel(selectedDate)}.</div>`;
       }
       function recordIdFor(patient) { return `${patient.id}_${patient.date}`; }
-      function activeRecordPatient() { return patients.find((patient) => patient.id === activeRecordPatientId); }
+      function activeRecordPatient() { return findPatientForRecord(activeRecordPatientId); }
       function recordPatientKey(patient) { return String(patientDisplayId(patient) || "").trim(); }
       function recordMatchesPatient(record, patient) {
         if (!patient) return false;
@@ -4019,6 +4038,7 @@ ${context}`;
         $$("[data-main-tab]").forEach((button) => button.classList.toggle("active", button.dataset.mainTab === tab));
         const showClinical = tab === "doctor" || tab === "staff";
         const visibility = {
+          queueOverview: showClinical,
           statsPanel: showClinical,
           after: showClinical,
           report: tab === "finance",
@@ -4033,6 +4053,7 @@ ${context}`;
         if (tab === "whatsapp") whatsappExpanded = true;
         if (preview) preview.hidden = tab !== "whatsapp";
         $("#statsPanel")?.classList.toggle("doctor-stats", tab === "doctor");
+        $("#queueOverview")?.classList.toggle("search-visible", tab === "doctor");
         $("#after")?.classList.toggle("doctor-after-section", tab === "doctor");
         $("#afterSectionHead")?.toggleAttribute("hidden", tab === "doctor");
         const dailyTotalCard = $("#statDailyTotalCard");
@@ -4253,7 +4274,7 @@ ${context}`;
         renderPreviousRecords();
       }
       function openMedicalRecord(patientId, recordId = "") {
-        const patient = patients.find((item) => item.id === patientId);
+        const patient = findPatientForRecord(patientId);
         if (!patient) return;
         if (activeAddOn && activeAddOn.recordId !== recordId) clearActiveAddOn(true);
         captureActiveDraft();
@@ -4436,6 +4457,7 @@ ${context}`;
         const results = $("#doctorPatientSearchResults");
         if (!panel || !input || !results) return;
         const visible = activeMainTab === "doctor";
+        $("#queueOverview")?.classList.toggle("search-visible", visible);
         panel.hidden = !visible;
         if (!visible) return;
         if (document.activeElement !== input && input.value !== doctorSearchQuery) {
@@ -4485,7 +4507,7 @@ ${context}`;
                   <span class="doctor-detail-pill">${doctorAbbreviation(p.visitType)}</span>
                   <span class="doctor-detail-pill">${doctorAbbreviation(p.mode)}</span>
                   ${status}
-                  <button class="secondary medical-record-btn" ${p.sampleOnly ? "disabled" : `data-medical-record="${p.id}"`} type="button">${p.sampleOnly ? "Demo row" : "Medical Record"}</button>
+                  <button class="secondary medical-record-btn" data-medical-record="${p.id}" type="button">Medical Record</button>
                 </div>
               </div>
             </div>
