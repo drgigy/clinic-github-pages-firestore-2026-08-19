@@ -1852,7 +1852,8 @@
         return medicalRecords.some((record) => {
           const recordDay = record.date || recordTimestamp(record).slice(0, 10);
           const hasContent = Boolean(record.note || record.noteHtml || record.docs?.visit);
-          return hasContent && recordDay === day && recordMatchesPatient(record, patient);
+          const sameAppointment = record.patientAppointmentId && record.patientAppointmentId === patient.id;
+          return hasContent && recordMatchesPatient(record, patient) && (sameAppointment || recordDay === day);
         });
       }
       function needsFollowup(patient) {
@@ -2811,7 +2812,7 @@ ${context}`;
           patientKey: recordPatientKey(patient),
           name: patient.name,
           mobile: patient.mobile || "",
-          date: localDateKey(),
+          date: patient.date || localDateKey(),
           note: "",
           noteHtml: "",
           docs: { visit: "" },
