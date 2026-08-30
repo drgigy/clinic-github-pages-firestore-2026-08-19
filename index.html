@@ -631,7 +631,7 @@
           <div class="doctor-search-panel" id="doctorSearchPanel" hidden>
             <label for="doctorPatientSearch">Search previous patient</label>
             <div class="doctor-search-row">
-              <input id="doctorPatientSearch" type="search" autocomplete="off" placeholder="Name, mobile number, or UHID" />
+              <input id="doctorPatientSearch" name="patient_lookup_no_autofill" type="search" autocomplete="new-password" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Name, mobile number, or UHID" />
               <button class="secondary" id="clearDoctorSearch" type="button">Clear</button>
             </div>
             <div class="doctor-search-results" id="doctorPatientSearchResults"></div>
@@ -655,7 +655,7 @@
             </div>
             <form id="patientForm">
               <div class="patient-search">
-                <label>Search previous patient<input id="patientSearch" autocomplete="off" placeholder="Name, mobile number, or ID" /></label>
+                <label>Search previous patient<input id="patientSearch" name="queue_patient_lookup_no_autofill" autocomplete="new-password" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Name, mobile number, or ID" /></label>
                 <div class="search-results" id="patientSearchResults"></div>
               </div>
               <label>Patient name<input id="name" required autocomplete="off" /></label>
