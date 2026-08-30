@@ -94,14 +94,16 @@
         background: var(--green); color: #fff; box-shadow: inset 0 0 0 2px var(--green-dark), 0 1px 4px rgba(0, 79, 51, .22);
       }
       .choice.noshow { background: var(--danger); color: var(--danger-ink); }
-      .queue-overview { display: grid; grid-template-columns: minmax(300px, .62fr) minmax(520px, 1fr); gap: 10px; align-items: stretch; margin-bottom: 12px; }
-      .queue-overview:not(.search-visible) { grid-template-columns: 1fr; }
+      .queue-overview { display: grid; grid-template-columns: minmax(190px, auto) minmax(520px, 1fr); gap: 10px; align-items: stretch; margin-bottom: 12px; }
+      .queue-overview.search-visible { grid-template-columns: minmax(300px, .62fr) minmax(520px, 1fr); }
       .queue-overview[hidden] { display: none !important; }
       .queue-overview .doctor-search-panel { margin: 0; min-height: 100%; align-content: center; padding: 10px; }
       .queue-overview .doctor-search-panel label { display: none; }
       .queue-overview .stats { margin-bottom: 0; }
       .queue-overview .doctor-search-row input { min-height: 36px; padding: 7px 10px; font-size: 14px; font-weight: 750; }
       .queue-overview .doctor-search-row .secondary { min-height: 36px; }
+      .queue-add-patient { min-height: 100%; padding: 0 18px; white-space: nowrap; }
+      .queue-overview.search-visible .queue-add-patient { display: none; }
       .stats { display: grid; grid-template-columns: repeat(6, minmax(86px, 1fr)); gap: 8px; margin-bottom: 18px; }
       .stats.doctor-stats { grid-template-columns: repeat(5, minmax(86px, 1fr)); }
       .stat, .section { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
@@ -530,6 +532,7 @@
         .main-tab { flex: 1; min-width: 0; }
         .nav-date-control { display: flex; flex-wrap: wrap; justify-content: flex-start; align-items: center; }
         .nav-date-control label { width: 180px; flex-basis: 180px; }
+        .queue-overview { grid-template-columns: minmax(170px, auto) minmax(460px, 1fr); }
         .queue-overview.search-visible { grid-template-columns: minmax(280px, .56fr) minmax(460px, 1fr); }
         .content-grid, .post-consult-block, .preview-body, .accounts-grid, .neuro-controls { grid-template-columns: 1fr; }
         .followup-row { grid-template-columns: 1fr 1fr; }
@@ -597,7 +600,6 @@
           <button class="secondary main-tab whatsapp-tab" type="button" data-main-tab="whatsapp" title="WhatsApp preview" aria-label="WhatsApp preview">☏</button>
         </div>
         <div class="nav-date-control">
-          <button class="primary" id="openAddPatientBtn" type="button">Add Patient</button>
           <button class="secondary date-step" id="prevDateBtn" type="button" title="Previous day" aria-label="Previous day">‹</button>
           <label>
             <span class="sr-only">Clinic date</span>
@@ -625,6 +627,7 @@
         <p class="date" id="todayLabel" hidden></p>
 
         <div class="queue-overview" id="queueOverview">
+          <button class="primary queue-add-patient" id="openAddPatientBtn" type="button">Add Patient</button>
           <div class="doctor-search-panel" id="doctorSearchPanel" hidden>
             <label for="doctorPatientSearch">Search previous patient</label>
             <div class="doctor-search-row">
