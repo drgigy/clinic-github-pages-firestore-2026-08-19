@@ -580,7 +580,7 @@
         <h1>Clinic Login</h1>
         <p>Sign in with the clinic account created for this app.</p>
         <form id="loginForm">
-          <label>Email address<input id="loginEmail" type="email" required autocomplete="username" /></label>
+          <label>Email address<input id="loginEmail" type="email" required autocomplete="username" value="democlinic@woyz.in" /></label>
           <label>Password<input id="loginPassword" type="password" required autocomplete="current-password" /></label>
           <div class="login-error" id="loginError" role="alert"></div>
           <div class="login-status" id="loginStatus">Checking secure access...</div>
@@ -5811,6 +5811,7 @@ ${context}`;
         document.body.classList.add("auth-locked");
         $("#signedInUser").textContent = "";
         $("#loginStatus").textContent = "Please sign in to continue.";
+        $("#loginEmail").value = "democlinic@woyz.in";
         $("#loginPassword").value = "";
       });
       document.addEventListener("blur", (event) => { if (event.target.dataset.amount) render(); }, true);
