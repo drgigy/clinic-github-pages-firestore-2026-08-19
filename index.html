@@ -696,14 +696,7 @@
               </div>
               <label>
                 Diagnosis / main symptom
-                <div class="button-row diagnosis-row" data-group="diagnosis">
-                  <button class="choice" type="button" data-value="Epilepsy">Epilepsy</button>
-                  <button class="choice" type="button" data-value="Headache">Headache</button>
-                  <button class="choice" type="button" data-value="Pain">Pain</button>
-                  <button class="choice" type="button" data-value="Stroke">Stroke</button>
-                  <button class="choice" type="button" data-value="Parkinsons">Parkinsons</button>
-                  <button class="choice" type="button" data-value="Others">Others</button>
-                </div>
+                <div class="button-row diagnosis-row" data-group="diagnosis"></div>
               </label>
               <button class="primary" type="submit">Save Patient</button>
             </form>
@@ -749,14 +742,7 @@
               </div>
               <label>
                 Diagnosis / main symptom
-                <div class="button-row diagnosis-row" data-group="editDiagnosis">
-                  <button class="choice" type="button" data-value="Epilepsy">Epilepsy</button>
-                  <button class="choice" type="button" data-value="Headache">Headache</button>
-                  <button class="choice" type="button" data-value="Pain">Pain</button>
-                  <button class="choice" type="button" data-value="Stroke">Stroke</button>
-                  <button class="choice" type="button" data-value="Parkinsons">Parkinsons</button>
-                  <button class="choice" type="button" data-value="Others">Others</button>
-                </div>
+                <div class="button-row diagnosis-row" data-group="editDiagnosis"></div>
               </label>
               <div class="actions">
                 <button class="primary" type="submit">Save Changes</button>
@@ -923,6 +909,14 @@
               </div>
               <div class="settings-comment-list" id="settingsCommentsList"></div>
             </label>
+            <label class="settings-block">
+              Reusable diagnoses
+              <div class="settings-grid">
+                <input id="newDiagnosis" autocomplete="off" placeholder="Example: Migraine, Neuropathy, Vertigo" />
+                <button class="primary" type="button" id="addDiagnosisBtn">+</button>
+              </div>
+              <div class="settings-comment-list" id="settingsDiagnosisList"></div>
+            </label>
             <div class="record-status" id="settingsStatus"></div>
             </div>
           </section>
@@ -1084,14 +1078,7 @@
         </div>
         <div class="field">
           <span>Diagnosis</span>
-          <div id="recordDiagnosisChoices" class="comment-choice-row" aria-label="Patient diagnosis">
-            <button class="choice" type="button" data-record-diagnosis="Epilepsy">Epilepsy</button>
-            <button class="choice" type="button" data-record-diagnosis="Headache">Headache</button>
-            <button class="choice" type="button" data-record-diagnosis="Pain">Pain</button>
-            <button class="choice" type="button" data-record-diagnosis="Stroke">Stroke</button>
-            <button class="choice" type="button" data-record-diagnosis="Parkinsons">Parkinsons</button>
-            <button class="choice" type="button" data-record-diagnosis="Other">Other</button>
-          </div>
+          <div id="recordDiagnosisChoices" class="comment-choice-row" aria-label="Patient diagnosis"></div>
           <input id="recordDiagnosisInput" class="comment-other-input" autocomplete="off" placeholder="Type custom diagnosis" hidden />
         </div>
         <div class="actions">
@@ -1145,6 +1132,7 @@
       const authorizationKeyStore = "clinicAuthorizationKey.v1";
       const doctorCredentialsStore = "clinicDoctorCredentials.v1";
       const patientCommentsStore = "clinicPatientComments.v1";
+      const diagnosesStore = "clinicDiagnoses.v1";
       const clinicNameStore = "clinicNameHtml.v1";
       const clinicNameStyleStore = "clinicNameStyle.v1";
       const ambientModes = {
@@ -1196,6 +1184,7 @@
       let clinicSettings = {
         doctorCredentials: "",
         patientComments: [],
+        diagnoses: [],
         clinicName: "",
         clinicNameStyle: parseStoredObject(clinicNameStyleStore, { size: "medium", color: "#17222b" })
       };
@@ -1442,12 +1431,14 @@
           clinicSettings = {
             doctorCredentials: "",
             patientComments: [],
+            diagnoses: [],
             clinicName: "",
             clinicNameStyle: parseStoredObject(clinicNameStyleStore, { size: "medium", color: "#17222b" }),
             ...(snapshot.exists() ? snapshot.data() : {})
           };
           writeStore(doctorCredentialsStore, clinicSettings.doctorCredentials || "");
           writeStore(patientCommentsStore, JSON.stringify(patientComments()));
+          writeStore(diagnosesStore, JSON.stringify(reusableDiagnoses()));
           writeStore(clinicNameStore, clinicSettings.clinicName || "");
           writeStore(clinicNameStyleStore, JSON.stringify(clinicNameStyle()));
           const credentialsEditor = $("#doctorCredentials");
@@ -1460,7 +1451,9 @@
           }
           if (!$("#settingsModal").classList.contains("open")) setClinicNameStyleControls();
           renderCommentSelects();
+          renderDiagnosisSelects();
           renderSettingsComments();
+          renderSettingsDiagnoses();
           renderClinicName();
         }, (error) => {
           console.error("Cloud settings sync failed", error);
@@ -1477,7 +1470,14 @@
           ? clinicSettings.patientComments.map((item) => String(item || "").trim()).filter(Boolean)
           : [];
       }
-      const recordDiagnosisPresets = ["Epilepsy", "Headache", "Pain", "Stroke", "Parkinsons"];
+      const defaultDiagnoses = ["Epilepsy", "Headache", "Pain", "Stroke", "Parkinsons"];
+      function reusableDiagnoses() {
+        const stored = Array.isArray(clinicSettings.diagnoses) ? clinicSettings.diagnoses : parseStoredArray(diagnosesStore);
+        return [...new Set([...defaultDiagnoses, ...stored]
+          .map((item) => String(item || "").trim())
+          .filter(Boolean))]
+          .sort((a, b) => defaultDiagnoses.includes(a) && !defaultDiagnoses.includes(b) ? -1 : !defaultDiagnoses.includes(a) && defaultDiagnoses.includes(b) ? 1 : a.localeCompare(b));
+      }
       function normaliseComments(comments = []) {
         return [...new Set((Array.isArray(comments) ? comments : [])
           .flatMap((item) => String(item || "").split(","))
@@ -1520,6 +1520,21 @@
           setSelectedPatientComments(id, selectedPatientComments(id));
         });
       }
+      function renderDiagnosisSelector(groupName, selectedValue = "") {
+        const box = document.querySelector(`[data-group="${groupName}"]`);
+        if (!box) return;
+        const selectedClean = String(selectedValue || selected(groupName) || "").trim();
+        const diagnoses = reusableDiagnoses();
+        box.innerHTML = [
+          ...diagnoses.map((diagnosis) => `<button class="choice ${diagnosis === selectedClean ? "active" : ""}" type="button" data-value="${escapeHtml(diagnosis)}">${escapeHtml(diagnosis)}</button>`),
+          `<button class="choice ${selectedClean === "Others" ? "active" : ""}" type="button" data-value="Others">Others</button>`
+        ].join("");
+      }
+      function renderDiagnosisSelects() {
+        renderDiagnosisSelector("diagnosis");
+        renderDiagnosisSelector("editDiagnosis");
+        renderRecordDiagnosisChoices(selectedRecordDiagnosis());
+      }
       function renderSettingsComments() {
         const box = $("#settingsCommentsList");
         if (!box) return;
@@ -1528,15 +1543,26 @@
           <span class="settings-comment-pill">${escapeHtml(comment)} <button type="button" data-remove-patient-comment="${escapeHtml(comment)}" aria-label="Remove ${escapeHtml(comment)}">&times;</button></span>
         `).join("") : `<span class="meta">No comments added.</span>`;
       }
+      function renderSettingsDiagnoses() {
+        const box = $("#settingsDiagnosisList");
+        if (!box) return;
+        const diagnoses = reusableDiagnoses();
+        box.innerHTML = diagnoses.length ? diagnoses.map((diagnosis) => `
+          <span class="settings-comment-pill">${escapeHtml(diagnosis)}${defaultDiagnoses.includes(diagnosis) ? "" : ` <button type="button" data-remove-diagnosis="${escapeHtml(diagnosis)}" aria-label="Remove ${escapeHtml(diagnosis)}">&times;</button>`}</span>
+        `).join("") : `<span class="meta">No diagnoses added.</span>`;
+      }
       async function saveClinicSettingsPatch(patch) {
         clinicSettings = { ...clinicSettings, ...patch };
         if (patch.doctorCredentials !== undefined) writeStore(doctorCredentialsStore, patch.doctorCredentials || "");
         if (patch.patientComments !== undefined) writeStore(patientCommentsStore, JSON.stringify(patientComments()));
+        if (patch.diagnoses !== undefined) writeStore(diagnosesStore, JSON.stringify(reusableDiagnoses()));
         if (patch.clinicName !== undefined) writeStore(clinicNameStore, patch.clinicName || "");
         if (patch.clinicNameStyle !== undefined) writeStore(clinicNameStyleStore, JSON.stringify(clinicNameStyle()));
         await setDoc(userSettingsDoc(), { ...patch, updatedAt: new Date().toISOString() }, { merge: true });
         renderCommentSelects();
+        renderDiagnosisSelects();
         renderSettingsComments();
+        renderSettingsDiagnoses();
         renderClinicName();
       }
       function patientCommentsHtml(patient) {
@@ -1601,7 +1627,8 @@
       }
       function setRecordDiagnosisSelection(value = "") {
         const cleanValue = String(value || "").trim();
-        const preset = recordDiagnosisPresets.find((item) => item.toLowerCase() === cleanValue.toLowerCase());
+        renderRecordDiagnosisChoices(cleanValue);
+        const preset = reusableDiagnoses().find((item) => item.toLowerCase() === cleanValue.toLowerCase());
         const selectedValue = preset || (cleanValue ? "Other" : "");
         const input = $("#recordDiagnosisInput");
         $$("#recordDiagnosisChoices [data-record-diagnosis]").forEach((button) => {
@@ -1611,6 +1638,16 @@
           input.hidden = selectedValue !== "Other";
           input.value = preset ? "" : cleanValue;
         }
+      }
+      function renderRecordDiagnosisChoices(selectedValue = "") {
+        const box = $("#recordDiagnosisChoices");
+        if (!box) return;
+        const selectedClean = String(selectedValue || "").trim();
+        const preset = reusableDiagnoses().find((item) => item.toLowerCase() === selectedClean.toLowerCase());
+        box.innerHTML = [
+          ...reusableDiagnoses().map((diagnosis) => `<button class="choice ${diagnosis === preset ? "active" : ""}" type="button" data-record-diagnosis="${escapeHtml(diagnosis)}">${escapeHtml(diagnosis)}</button>`),
+          `<button class="choice ${!preset && selectedClean ? "active" : ""}" type="button" data-record-diagnosis="Other">Other</button>`
+        ].join("");
       }
       function selectedRecordDiagnosis() {
         const selectedButton = document.querySelector("#recordDiagnosisChoices [data-record-diagnosis].active");
@@ -1626,7 +1663,9 @@
       function setChoiceByValue(groupName, value) {
         const group = document.querySelector(`[data-group="${groupName}"]`);
         if (!group || !value) return;
-        group.querySelectorAll(".choice").forEach((button) => button.classList.toggle("active", button.dataset.value === value));
+        const buttons = [...group.querySelectorAll(".choice")];
+        const match = buttons.find((button) => button.dataset.value === value);
+        buttons.forEach((button) => button.classList.toggle("active", button === match || (!match && button.dataset.value === "Others")));
       }
       function money(value) { const number = Number(value || 0); return number ? number.toLocaleString("en-IN") : "0"; }
       function selectedDayPatients() { return patients.filter((patient) => patient.date === selectedDate); }
@@ -4051,6 +4090,7 @@ ${context}`;
       }
       function openAddPatientModal() {
         renderCommentSelects();
+        renderDiagnosisSelects();
         setSelectedPatientComments("patientComments", []);
         $("#addPatientModal").classList.add("open");
         $("#addPatientModal").setAttribute("aria-hidden", "false");
@@ -4117,6 +4157,7 @@ ${context}`;
         $("#editPatientId").value = patientDisplayId(patient);
         $("#editMobile").value = patient.mobile || "";
         renderCommentSelects();
+        renderDiagnosisSelects();
         setSelectedPatientComments("editPatientComments", patient.comments || []);
         ["editVisitType", "editMode", "editDiagnosis"].forEach(clearChoiceGroup);
         setChoiceByValue("editVisitType", patient.visitType || "First consultation");
@@ -4139,6 +4180,7 @@ ${context}`;
         setClinicNameStyleControls();
         $("#doctorCredentials").innerHTML = doctorCredentialsHtml();
         renderSettingsComments();
+        renderSettingsDiagnoses();
         $("#settingsModal").classList.add("open");
         $("#settingsModal").setAttribute("aria-hidden", "false");
         $("#authorizationKey").focus();
@@ -5606,6 +5648,20 @@ ${context}`;
           await saveClinicSettingsPatch({ patientComments: comments });
           $("#settingsStatus").textContent = "Comment removed.";
         }
+        if (button.id === "addDiagnosisBtn") {
+          const diagnosis = $("#newDiagnosis").value.trim();
+          if (!diagnosis) { alert("Enter a diagnosis."); return; }
+          const diagnoses = [...new Set([...reusableDiagnoses(), diagnosis])].sort((a, b) => a.localeCompare(b));
+          $("#newDiagnosis").value = "";
+          await saveClinicSettingsPatch({ diagnoses });
+          $("#settingsStatus").textContent = "Diagnosis saved.";
+        }
+        if (button.dataset.removeDiagnosis) {
+          const diagnosis = button.dataset.removeDiagnosis;
+          const diagnoses = reusableDiagnoses().filter((item) => item !== diagnosis);
+          await saveClinicSettingsPatch({ diagnoses });
+          $("#settingsStatus").textContent = "Diagnosis removed.";
+        }
         if (button.dataset.copy) copyReport(button.dataset.copy);
         if (button.id === "toggleFollowup") { followupExpanded = !followupExpanded; renderFollowupList(); }
         if (button.id === "toggleWhatsapp") { whatsappExpanded = !whatsappExpanded; renderWhatsappPreview(); }
@@ -5763,7 +5819,9 @@ ${context}`;
       setClinicNameStyleControls();
       $("#doctorCredentials").innerHTML = doctorCredentialsHtml();
       renderCommentSelects();
+      renderDiagnosisSelects();
       renderSettingsComments();
+      renderSettingsDiagnoses();
       renderClinicName();
       setMainTab("doctor");
       render();
