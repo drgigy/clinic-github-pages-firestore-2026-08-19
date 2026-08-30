@@ -165,7 +165,9 @@
       .priority.routine { background: #e8f3f1; color: #115e59; }
       .consult-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 10px; }
       .consult-title { min-width: 0; }
-      .doctor-consult-head { position: relative; display: flex; align-items: center; justify-content: space-between; margin-bottom: 0; min-height: 40px; }
+      .doctor-consult-head { position: relative; display: grid; grid-template-columns: minmax(260px, 1fr) auto; align-items: center; column-gap: 14px; margin-bottom: 0; min-height: 40px; }
+      .doctor-consult-identity { min-width: 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .doctor-identity-tags { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
       .doctor-consult-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
       .doctor-test-centre { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; min-height: 34px; width: min(280px, 32%); pointer-events: none; }
       .doctor-test-centre .selected-test-pill { pointer-events: auto; }
@@ -1539,6 +1541,10 @@
       }
       function patientCommentsHtml(patient) {
         const comments = Array.isArray(patient.comments) ? patient.comments.filter(Boolean) : [];
+        return comments.map((comment) => `<span class="comment-pill">${escapeHtml(comment)}</span>`).join("");
+      }
+      function patientVisibleCommentsHtml(patient) {
+        const comments = Array.isArray(patient.comments) ? patient.comments.filter((comment) => String(comment || "").trim().toLowerCase() !== "sample") : [];
         return comments.map((comment) => `<span class="comment-pill">${escapeHtml(comment)}</span>`).join("");
       }
       function clinicNameHtml() {
@@ -4524,13 +4530,17 @@ ${context}`;
             <div class="doctor-patient-row">
               <span class="row-number">${index + 1}</span>
               <div class="consult-head doctor-consult-head">
-                <div class="consult-title"><b>${doctorPatientLine(p)}</b></div>
+                <div class="doctor-consult-identity">
+                  <div class="consult-title"><b>${doctorPatientLine(p)}</b></div>
+                  <div class="doctor-identity-tags">
+                    ${patientVisibleCommentsHtml(p)}
+                    ${diagnosis ? `<span class="doctor-detail-pill diagnosis-pill">${escapeHtml(diagnosis)}</span>` : ""}
+                  </div>
+                </div>
                 <div class="doctor-test-centre">
                   ${selectedTests.map((test) => `<span class="selected-test-pill">${test}</span>`).join("")}
                 </div>
                 <div class="doctor-consult-meta">
-                  ${patientCommentsHtml(p)}
-                  ${diagnosis ? `<span class="doctor-detail-pill diagnosis-pill">${escapeHtml(diagnosis)}</span>` : ""}
                   <span class="doctor-detail-pill">${doctorAbbreviation(p.visitType)}</span>
                   <span class="doctor-detail-pill">${doctorAbbreviation(p.mode)}</span>
                   ${status}
