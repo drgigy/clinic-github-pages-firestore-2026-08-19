@@ -61,8 +61,8 @@
       .main-tabs { justify-self: center; display: flex; align-items: end; justify-content: center; gap: 8px; min-width: 0; }
       .main-tab { min-width: 104px; }
       .main-tab.active { background: var(--primary); color: #fff; box-shadow: inset 0 0 0 2px var(--green-dark), 0 1px 4px rgba(0, 79, 51, .22); }
-      .whatsapp-tab { min-width: 54px; padding: 0; }
-      .whatsapp-tab svg { width: 25px; height: 25px; display: block; }
+      .whatsapp-tab { min-width: 58px; padding: 0; }
+      .whatsapp-tab svg { width: 34px; height: 34px; display: block; }
       .nav-date-control { justify-self: end; display: flex; align-items: end; justify-content: flex-end; gap: 10px; min-width: 0; }
       .nav-date-control label { margin: 0; width: 170px; flex: 0 0 170px; }
       .nav-date-control input[type="date"] { width: 100%; min-width: 0; }
@@ -101,7 +101,7 @@
       .queue-overview .doctor-search-panel { margin: 0; min-height: 100%; align-content: center; padding: 10px; }
       .queue-overview .doctor-search-panel label { display: none; }
       .queue-overview .stats { margin-bottom: 0; }
-      .queue-overview .doctor-search-row input { min-height: 36px; padding: 7px 10px; font-size: 14px; font-weight: 750; }
+      .queue-overview .doctor-search-row textarea { min-height: 36px; height: 36px; padding: 7px 10px; font-size: 14px; font-weight: 750; }
       .queue-overview .doctor-search-row .secondary { min-height: 36px; }
       .queue-add-patient { min-height: 100%; padding: 0 18px; white-space: nowrap; }
       .queue-overview.search-visible .queue-add-patient { display: none; }
@@ -132,7 +132,8 @@
       .doctor-search-panel[hidden] { display: none; }
       .doctor-search-panel label { font-size: 13px; font-weight: 800; color: var(--muted); }
       .doctor-search-row { display: flex; gap: 8px; align-items: center; }
-      .doctor-search-row input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; font-size: 16px; font-weight: 800; color: var(--text); }
+      .doctor-search-row textarea { flex: 1; min-width: 0; height: 40px; min-height: 40px; border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; font-family: inherit; font-size: 16px; font-weight: 800; line-height: 1; color: var(--text); resize: none; overflow: hidden; }
+      .patient-search textarea { width: 100%; min-height: 40px; height: 40px; border: 1px solid var(--line); border-radius: var(--radius); padding: 9px 10px; font-family: inherit; color: var(--ink); background: #fff; resize: none; overflow: hidden; }
       .doctor-search-results { display: grid; gap: 8px; }
       .doctor-search-result { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: #f8fbfc; color: var(--text); text-align: left; display: grid; gap: 3px; cursor: pointer; }
       .doctor-search-result strong { font-size: 16px; }
@@ -599,8 +600,9 @@
           <button class="secondary main-tab" type="button" data-main-tab="finance">Finance</button>
           <button class="secondary main-tab" type="button" data-main-tab="followup">Follow-up</button>
           <button class="secondary main-tab whatsapp-tab" type="button" data-main-tab="whatsapp" title="WhatsApp preview" aria-label="WhatsApp preview">
-            <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-              <path fill="currentColor" d="M16.02 3.2A12.68 12.68 0 0 0 5.13 22.38L3.2 29l6.79-1.78a12.7 12.7 0 0 0 6.03 1.53h.01A12.78 12.78 0 0 0 28.8 16 12.78 12.78 0 0 0 16.02 3.2Zm0 23.42h-.01a10.55 10.55 0 0 1-5.37-1.47l-.39-.23-4.03 1.06 1.08-3.93-.25-.4A10.55 10.55 0 1 1 26.66 16a10.65 10.65 0 0 1-10.64 10.62Zm5.84-7.95c-.32-.16-1.9-.94-2.2-1.05-.29-.11-.5-.16-.72.16-.21.32-.82 1.05-1.01 1.27-.19.21-.37.24-.69.08-.32-.16-1.35-.5-2.57-1.59-.95-.85-1.59-1.89-1.78-2.21-.19-.32-.02-.49.14-.65.15-.14.32-.37.48-.56.16-.19.21-.32.32-.53.11-.21.05-.4-.03-.56-.08-.16-.72-1.73-.99-2.37-.26-.62-.52-.54-.72-.55h-.61c-.21 0-.56.08-.85.4-.29.32-1.12 1.09-1.12 2.66s1.15 3.09 1.31 3.3c.16.21 2.26 3.45 5.47 4.84.76.33 1.36.53 1.83.68.77.24 1.47.21 2.02.13.62-.09 1.9-.78 2.17-1.53.27-.75.27-1.39.19-1.53-.08-.13-.29-.21-.61-.37Z" />
+            <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+              <rect width="64" height="64" rx="16" fill="#25d366" />
+              <path fill="#fff" d="M32 12.5A19.3 19.3 0 0 0 15.39 41.6l-2.89 9.9 10.16-2.66A19.3 19.3 0 1 0 32 12.5Zm0 33.8a14.3 14.3 0 0 1-7.29-2l-.52-.31-6.02 1.58 1.61-5.87-.34-.55A14.28 14.28 0 1 1 32 46.3Zm8.12-10.66c-.44-.22-2.62-1.29-3.03-1.44-.41-.15-.7-.22-1 .22-.29.44-1.15 1.44-1.41 1.74-.26.29-.52.33-.96.11-.44-.22-1.87-.69-3.56-2.19-1.31-1.17-2.2-2.62-2.46-3.06-.26-.44-.03-.68.2-.9.2-.2.44-.52.66-.78.22-.26.29-.44.44-.74.15-.29.07-.55-.04-.78-.11-.22-1-2.41-1.37-3.3-.36-.86-.73-.74-1-.76h-.85c-.29 0-.78.11-1.18.55-.41.44-1.55 1.52-1.55 3.71s1.59 4.3 1.81 4.6c.22.29 3.13 4.78 7.58 6.7 1.06.46 1.88.73 2.53.94 1.06.34 2.03.29 2.79.18.85-.13 2.62-1.07 2.99-2.1.37-1.04.37-1.92.26-2.1-.11-.19-.41-.3-.85-.52Z" />
             </svg>
           </button>
         </div>
@@ -636,7 +638,7 @@
           <div class="doctor-search-panel" id="doctorSearchPanel" hidden>
             <label for="doctorPatientSearch">Search previous patient</label>
             <div class="doctor-search-row">
-              <input id="doctorPatientSearch" name="patient_lookup_no_autofill" type="search" autocomplete="new-password" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Name, mobile number, or UHID" />
+              <textarea id="doctorPatientSearch" name="patient_lookup_text" rows="1" inputmode="search" enterkeyhint="search" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Name, mobile number, or UHID"></textarea>
               <button class="secondary" id="clearDoctorSearch" type="button">Clear</button>
             </div>
             <div class="doctor-search-results" id="doctorPatientSearchResults"></div>
@@ -660,7 +662,7 @@
             </div>
             <form id="patientForm">
               <div class="patient-search">
-                <label>Search previous patient<input id="patientSearch" name="queue_patient_lookup_no_autofill" autocomplete="new-password" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Name, mobile number, or ID" /></label>
+                <label>Search previous patient<textarea id="patientSearch" name="queue_patient_lookup_text" rows="1" inputmode="search" enterkeyhint="search" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Name, mobile number, or ID"></textarea></label>
                 <div class="search-results" id="patientSearchResults"></div>
               </div>
               <label>Patient name<input id="name" required autocomplete="off" /></label>
@@ -5704,6 +5706,11 @@ ${context}`;
         setRecordDirty();
       });
       document.addEventListener("keydown", async (event) => {
+        if ((event.target.id === "doctorPatientSearch" || event.target.id === "patientSearch") && event.key === "Enter") {
+          event.preventDefault();
+          event.target.blur();
+          return;
+        }
         const recordOpen = $("#medicalRecordScreen").classList.contains("open");
         const ambientDraftActive = draftMedicalRecord?.source === "ambient" || activeAddOn;
         if (!recordOpen || !ambientDraftActive) return;
