@@ -582,8 +582,8 @@
         <h1>Clinic Login</h1>
         <p>Sign in with the clinic account created for this app.</p>
         <form id="loginForm">
-          <label>Email address<input id="loginEmail" type="email" required autocomplete="username" value="democlinic@woyz.in" /></label>
-          <label>Password<input id="loginPassword" type="password" required autocomplete="current-password" value="Pass@123" /></label>
+          <label>Email address<input id="loginEmail" type="email" required autocomplete="username" /></label>
+          <label>Password<input id="loginPassword" type="password" required autocomplete="current-password" /></label>
           <div class="login-error" id="loginError" role="alert"></div>
           <div class="login-status" id="loginStatus">Checking secure access...</div>
           <button class="primary" id="loginButton" type="submit">Sign in</button>
@@ -1159,6 +1159,9 @@
         if (!uid) throw new Error("A signed-in user is required for cloud access.");
         return uid;
       }
+      function userStoreKey(key) {
+        return auth.currentUser?.uid ? `${key}.${auth.currentUser.uid}` : key;
+      }
       function userCollection(collectionName) {
         return collection(db, "users", currentUserId(), collectionName);
       }
@@ -1281,9 +1284,9 @@
             changed = true;
             savePatientToCloud(patient);
           });
-        if (changed) writeStore(storeKey, JSON.stringify(patients));
+        if (changed) writeStore(userStoreKey(storeKey), JSON.stringify(patients));
       }
-      function parsePatients() { try { const value = JSON.parse(readStore(storeKey, "[]")); return Array.isArray(value) ? value : []; } catch { return []; } }
+      function parsePatients() { try { const value = JSON.parse(readStore(userStoreKey(storeKey), "[]")); return Array.isArray(value) ? value : []; } catch { return []; } }
       let patients = parsePatients();
       let accounts = [];
 
@@ -1329,7 +1332,7 @@
         return new Date(`${dateKey}T00:00:00`).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
       }
       function save() {
-        writeStore(storeKey, JSON.stringify(patients));
+        writeStore(userStoreKey(storeKey), JSON.stringify(patients));
         writeStore(phoneKey, $("#doctorPhone").value.trim());
         writeStore(selectedDateKey, selectedDate);
       }
@@ -1401,7 +1404,7 @@
         firebaseUnsubscribers.push(onSnapshot(patientsQuery, (snapshot) => {
           patients = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
           ensureSequencePatientIds();
-          writeStore(storeKey, JSON.stringify(patients));
+          writeStore(userStoreKey(storeKey), JSON.stringify(patients));
           render();
         }, (error) => {
           console.error("Cloud sync failed", error);
@@ -1673,50 +1676,6 @@
       function selectedDayPatients() { return patients.filter((patient) => patient.date === selectedDate); }
       function filteredPatients() { return selectedDayPatients().filter((patient) => activeFilter === "all" || patient.mode === activeFilter); }
       function selectedMonthPatients() { return patients.filter((patient) => patient.date.slice(0, 7) === selectedDate.slice(0, 7)); }
-      function sampleQueuePatients(existingRows = []) {
-        const names = [
-          ["Meera Nair", "42", "Female", "Headache", "Review"],
-          ["Rohan Thomas", "58", "Male", "Parkinsons", "Review"],
-          ["Anita Joseph", "34", "Female", "Epilepsy", "First consultation"],
-          ["Vivek Menon", "51", "Male", "Pain", "Review"],
-          ["Sara Mathew", "46", "Female", "Stroke", "First consultation"],
-          ["Arun Varghese", "63", "Male", "Others", "Review"]
-        ];
-        const existingIds = new Set(existingRows.map((patient) => patient.id));
-        const samples = names.map(([name, age, sex, diagnosis, visitType], index) => ({
-            id: `sample-queue-${selectedDate}-${index + 1}`,
-            patientId: `DEMO${String(index + 1).padStart(3, "0")}`,
-            date: selectedDate,
-            name,
-            age,
-            sex,
-            mobile: "",
-            comments: ["Sample"],
-            customDiagnosis: "",
-            visitType,
-            mode: "In clinic",
-            attendance: "",
-            callbackStatus: "",
-            tests: [],
-            consultAmount: "",
-            consultPayMode: "",
-            testAmount: "",
-            testPayMode: "",
-            sampleOnly: true
-          }))
-          .filter((patient) => !existingIds.has(patient.id));
-        return samples.slice(0, Math.max(0, 6 - existingRows.length));
-      }
-      async function makeSamplePatientReal(patient) {
-        if (!patient?.sampleOnly) return patient;
-        const existing = patients.find((item) => item.id === patient.id);
-        if (existing) return existing;
-        const realPatient = { ...patient, sampleOnly: false };
-        patients.push(realPatient);
-        save();
-        await savePatientToCloud(realPatient);
-        return realPatient;
-      }
       function monthInRange(dateKey, startMonth, endMonth) {
         const month = dateKey?.slice(0, 7);
         return month && month >= startMonth && month <= endMonth;
@@ -1761,8 +1720,7 @@
       function afterPatientLine(patient) { return `${patientLine(patient)} · Mobile: ${patient.mobile || "-"}`; }
       function doctorPatientLine(patient) { return `${patient.name}, ${patient.age}/${(patient.sex || "").charAt(0) || "-"}`; }
       function findPatientForRecord(patientId) {
-        return patients.find((patient) => patient.id === patientId)
-          || sampleQueuePatients(selectedDayPatients()).find((patient) => patient.id === patientId);
+        return patients.find((patient) => patient.id === patientId);
       }
       function doctorAbbreviation(value) {
         return {
@@ -4401,7 +4359,7 @@ ${context}`;
         renderPreviousRecords();
       }
       async function openMedicalRecord(patientId, recordId = "") {
-        const patient = await makeSamplePatientReal(findPatientForRecord(patientId));
+        const patient = findPatientForRecord(patientId);
         if (!patient) return;
         if (activeAddOn && activeAddOn.recordId !== recordId) clearActiveAddOn(true);
         captureActiveDraft();
@@ -4620,7 +4578,7 @@ ${context}`;
           const selectedTests = (p.tests || []).filter((test) => tests.includes(test));
           const diagnosis = doctorDiagnosis(p);
           return `
-          <article class="patient ${hasNote ? "patient-seen-note" : ""} ${p.sampleOnly ? "sample-patient" : ""}">
+          <article class="patient ${hasNote ? "patient-seen-note" : ""}">
             <div class="doctor-patient-row">
               <span class="row-number">${index + 1}</span>
               <div class="consult-head doctor-consult-head">
@@ -4664,8 +4622,7 @@ ${context}`;
           return;
         }
         if (activeMainTab === "doctor") {
-          const doctorSourceRows = [...rows, ...sampleQueuePatients(rows)];
-          const doctorRows = doctorSourceRows
+          const doctorRows = rows
             .map((patient, originalIndex) => ({ patient, originalIndex, hasNote: hasMedicalNoteForPatientDate(patient) }))
             .sort((a, b) => {
               const rank = (item) => item.patient.attendance === "No show" ? 2 : item.hasNote ? 1 : 0;
@@ -5863,8 +5820,7 @@ ${context}`;
         document.body.classList.add("auth-locked");
         $("#signedInUser").textContent = "";
         $("#loginStatus").textContent = "Please sign in to continue.";
-        $("#loginEmail").value = "democlinic@woyz.in";
-        $("#loginPassword").value = "Pass@123";
+        $("#loginPassword").value = "";
       });
       document.addEventListener("blur", (event) => { if (event.target.dataset.amount) render(); }, true);
       $("#authorizationKey").value = readStore(authorizationKeyStore, "");
