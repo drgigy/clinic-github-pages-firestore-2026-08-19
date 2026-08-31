@@ -2035,6 +2035,10 @@ Allergies:
 
 Review of Investigations:
 
+Prescription:
+
+Advice / Instructions:
+
 Plain review text should go under Review Note.
 If allergies or allergens are mentioned, put them under Allergies.
 If the dictation contains review of investigations, scan results, lab results, MRI, CT, EEG, NCS, blood reports, or report review, use this heading:
@@ -2046,7 +2050,13 @@ Under Review of Investigations, arrange investigations like the main visit-note 
 - under each imaging/report item, place each finding on a separate line
 - for blood reports, include each value on a separate line with appropriate units
 
-Do not create Chief Complaints, History of Present Illness, Examination, Diagnosis, Prescription, Advice, or Orders headings.
+If medicines are dictated, use Prescription and format every medicine like this:
+1. Tablet Drug name dose
+   Clear English patient instruction without repeating the medicine name.
+   Malayalam patient instruction without repeating the medicine name.
+
+If advice, review plans, follow-up advice, precautions, or investigations to be done are dictated, place them under Advice / Instructions.
+Do not create Chief Complaints, History of Present Illness, Examination, Diagnosis, or Orders headings.
 
 Never add clinical information that was not spoken.
 
@@ -4074,6 +4084,45 @@ ${context}`;
         }
         return plainTextToHtml(extracted.join("\n").trim());
       }
+      function extractPrescriptionFallbackHtml(html) {
+        const lines = htmlToPlainText(html || "").split("\n").map((line) => line.trim()).filter(Boolean);
+        const firstMedicineIndex = lines.findIndex((line) => isPrescriptionMedicineLine(line));
+        if (firstMedicineIndex < 0) return "";
+        const kept = [];
+        for (let cursor = firstMedicineIndex; cursor < lines.length; cursor += 1) {
+          const line = lines[cursor];
+          if (/^(review note|allergies|review of investigations)\s*:?\s*$/i.test(line)) continue;
+          kept.push(line);
+        }
+        return plainTextToHtml(kept.join("\n").trim());
+      }
+      function prescriptionHtmlFromRecord(record) {
+        if (!record) return "";
+        const html = record.docs?.visit || record.noteHtml || (record.note ? plainTextToHtml(record.note) : "");
+        if ((record.recordKind || "visit") === "prescription") return stripDuplicateDocumentTitle(html, "Prescription");
+        return extractPrescriptionFromVisitHtml(html) || ((record.recordKind || "visit") === "addon" ? extractPrescriptionFallbackHtml(html) : "");
+      }
+      function prescriptionHtmlForCurrentPatient(patient) {
+        const fragments = [];
+        const seen = new Set();
+        const addFragment = (html) => {
+          const text = htmlToPlainText(html || "").trim();
+          const key = text.toLowerCase();
+          if (!text || seen.has(key)) return;
+          seen.add(key);
+          fragments.push(html);
+        };
+        addFragment(extractPrescriptionFromVisitHtml(activeRecordDocs.visit || $("#medicalNoteText").innerHTML));
+        patientMedicalRecords(patient).forEach((record) => {
+          if (record.id === activeRecordId) return;
+          const recordDay = record.date || recordTimestamp(record).slice(0, 10);
+          const sameVisitDay = recordDay === activeRecordDate || recordDay === patient.date;
+          if (!sameVisitDay) return;
+          if (!["addon", "prescription"].includes(record.recordKind || "visit")) return;
+          addFragment(prescriptionHtmlFromRecord(record));
+        });
+        return fragments.join("<br>");
+      }
       function printPrescriptionFromVisitNote() {
         const patient = activeRecordPatient();
         if (!patient) return;
@@ -4082,7 +4131,7 @@ ${context}`;
           return;
         }
         persistCurrentRecordTab();
-        const prescriptionHtml = extractPrescriptionFromVisitHtml(activeRecordDocs.visit || $("#medicalNoteText").innerHTML);
+        const prescriptionHtml = prescriptionHtmlForCurrentPatient(patient);
         if (!prescriptionHtml) {
           alert("No prescription section found in this visit note.");
           return;
