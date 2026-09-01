@@ -367,6 +367,8 @@
       .previous-record.active { background: var(--primary); color: #fff; }
       .previous-record.active span { color: #d7fffa; }
       .previous-record span { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; }
+      .previous-record .record-doctor { color: #718298; font-size: 11px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
+      .previous-record.active .record-doctor { color: #d7fffa; }
       .record-entry-row { display: grid; grid-template-columns: 1fr; gap: 6px; align-items: stretch; }
       .icon-delete { min-height: 38px; width: 38px; padding: 0; color: var(--danger-ink); background: var(--danger); }
       .icon-delete svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -1211,6 +1213,9 @@
       function userDirectoryDoc() {
         return doc(db, "adminUserDirectory", currentUserId());
       }
+      function doctorDirectoryRef() {
+        return collection(db, "adminDoctorDirectory");
+      }
       function userFeatureDoc() {
         return doc(db, "adminUserFeatures", currentUserId());
       }
@@ -1279,6 +1284,7 @@
       let sharedPatientsUnsubscribe = null;
       let activeSharedPatientsGroup = null;
       let sharedPatientProfiles = [];
+      let doctorDirectory = {};
       let adminNoteSettings = {
         authorizationKey: "",
         speechModel: "",
@@ -1475,6 +1481,7 @@
           await setDoc(medicalRecordDoc(record.id), {
             ...record,
             ownerUid: currentUserId(),
+            doctorName: record.doctorName || doctorNameForUid(currentUserId()),
             sharedPatientGroup: sharedPatientGroup()
           }, { merge: true });
         } catch (error) {
@@ -1620,6 +1627,17 @@
           console.error("Cloud medical records sync failed", error);
         });
       }
+      function syncDoctorDirectory() {
+        firebaseUnsubscribers.push(onSnapshot(doctorDirectoryRef(), (snapshot) => {
+          doctorDirectory = {};
+          snapshot.docs.forEach((item) => {
+            doctorDirectory[item.id] = item.data();
+          });
+          renderPreviousRecords();
+        }, (error) => {
+          console.error("Doctor directory sync failed", error);
+        }));
+      }
       function syncSharedPatients() {
         const group = sharedPatientGroup();
         if (!group) {
@@ -1693,6 +1711,7 @@
           console.error("Cloud accounts sync failed", error);
         }));
         syncMedicalRecords();
+        syncDoctorDirectory();
         const neuroStatsQuery = query(neuroStatsCollection, orderBy("month", "desc"));
         firebaseUnsubscribers.push(onSnapshot(neuroStatsQuery, (snapshot) => {
           neuroStats = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
@@ -3262,6 +3281,7 @@ ${context}`;
           <div class="record-entry-row">
             <button class="secondary previous-record ${activeRecordView === "single" && record.id === activeRecordId ? "active" : ""}" type="button" data-open-record="${record.id}">
               <strong>${record.source === "ambient" ? `${ambientModeLabel(record.recordKind || "visit")} - ` : ""}${dateTimeLabel(recordTimestamp(record))}</strong>
+              ${recordDoctorLabel(record) ? `<span class="record-doctor">${escapeHtml(recordDoctorLabel(record))}</span>` : ""}
             </button>
           </div>
         `).join("") : `<div class="empty">No notes yet. Click Add note.</div>`}
@@ -3325,6 +3345,14 @@ ${context}`;
       }
       function escapeHtml(value) {
         return String(value || "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+      }
+      function doctorNameForUid(uid) {
+        const key = String(uid || "").trim();
+        const doctor = key ? doctorDirectory[key] || {} : {};
+        return String(doctor.name || doctor.email || "").trim();
+      }
+      function recordDoctorLabel(record) {
+        return String(record.doctorName || doctorNameForUid(record.ownerUid) || "").trim();
       }
       function createNewMedicalEntry(source = "typed") {
         const patient = activeRecordPatient();
@@ -4723,6 +4751,8 @@ ${context}`;
           details,
           source: activeRecordSource,
           recordKind: activeRecordSource === "ambient" ? activeAmbientMode : "visit",
+          ownerUid: currentUserId(),
+          doctorName: doctorNameForUid(currentUserId()),
           createdAt,
           updatedAt: new Date().toISOString()
         };
