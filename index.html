@@ -1176,6 +1176,17 @@
       function userDoc(collectionName, documentId) {
         return doc(db, "users", currentUserId(), collectionName, documentId);
       }
+      function sharedPatientGroup() {
+        return String(appFeatures.sharedPatientGroup || "").trim();
+      }
+      function medicalRecordsCollectionRef() {
+        const group = sharedPatientGroup();
+        return group ? collection(db, "patientGroups", group, "medicalRecords") : userCollection("medicalRecords");
+      }
+      function medicalRecordDoc(recordId) {
+        const group = sharedPatientGroup();
+        return group ? doc(db, "patientGroups", group, "medicalRecords", recordId) : userDoc("medicalRecords", recordId);
+      }
       function userSettingsDoc() {
         return doc(db, "users", currentUserId(), "settings", "clinic");
       }
@@ -1245,6 +1256,8 @@
       let firebaseSyncStarted = false;
       let firebaseUnsubscribers = [];
       let deviceGateUnsubscribe = null;
+      let medicalRecordsUnsubscribe = null;
+      let activeMedicalRecordsGroup = null;
       let adminNoteSettings = {
         authorizationKey: "",
         speechModel: "",
@@ -1415,7 +1428,11 @@
       }
       async function saveMedicalRecordToCloud(record) {
         try {
-          await setDoc(userDoc("medicalRecords", record.id), record, { merge: true });
+          await setDoc(medicalRecordDoc(record.id), {
+            ...record,
+            ownerUid: currentUserId(),
+            sharedPatientGroup: sharedPatientGroup()
+          }, { merge: true });
         } catch (error) {
           console.error("Cloud medical record save failed", error);
         }
@@ -1429,7 +1446,7 @@
       }
       async function deleteMedicalRecordFromCloud(id) {
         try {
-          await deleteDoc(userDoc("medicalRecords", id));
+          await deleteDoc(medicalRecordDoc(id));
         } catch (error) {
           console.error("Cloud medical record delete failed", error);
         }
@@ -1544,12 +1561,26 @@
           $("#loginStatus").textContent = "Device approval could not be checked. Contact admin.";
         });
       }
+      function syncMedicalRecords() {
+        const group = sharedPatientGroup();
+        const sourceKey = group || currentUserId();
+        if (activeMedicalRecordsGroup === sourceKey && medicalRecordsUnsubscribe) return;
+        if (medicalRecordsUnsubscribe) medicalRecordsUnsubscribe();
+        activeMedicalRecordsGroup = sourceKey;
+        const medicalRecordsQuery = query(medicalRecordsCollectionRef(), orderBy("date", "desc"));
+        medicalRecordsUnsubscribe = onSnapshot(medicalRecordsQuery, (snapshot) => {
+          medicalRecords = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+          renderPreviousRecords();
+          renderAfterList();
+        }, (error) => {
+          console.error("Cloud medical records sync failed", error);
+        });
+      }
       function startFirebaseSync() {
         if (firebaseSyncStarted) return;
         firebaseSyncStarted = true;
         const patientsCollection = userCollection("patients");
         const accountsCollection = userCollection("accounts");
-        const medicalRecordsCollection = userCollection("medicalRecords");
         const neuroStatsCollection = userCollection("neuroMonthlyStats");
         const settingsDocRef = userSettingsDoc();
         const featureDocRef = userFeatureDoc();
@@ -1567,6 +1598,7 @@
         firebaseUnsubscribers.push(onSnapshot(featureDocRef, (snapshot) => {
           appFeatures = { ...defaultAppFeatures, ...(snapshot.exists() ? snapshot.data() : {}) };
           applyAppFeatures();
+          syncMedicalRecords();
           render();
         }, (error) => {
           console.error("Feature settings sync failed", error);
@@ -1588,14 +1620,7 @@
         }, (error) => {
           console.error("Cloud accounts sync failed", error);
         }));
-        const medicalRecordsQuery = query(medicalRecordsCollection, orderBy("date", "desc"));
-        firebaseUnsubscribers.push(onSnapshot(medicalRecordsQuery, (snapshot) => {
-          medicalRecords = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
-          renderPreviousRecords();
-          renderAfterList();
-        }, (error) => {
-          console.error("Cloud medical records sync failed", error);
-        }));
+        syncMedicalRecords();
         const neuroStatsQuery = query(neuroStatsCollection, orderBy("month", "desc"));
         firebaseUnsubscribers.push(onSnapshot(neuroStatsQuery, (snapshot) => {
           neuroStats = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
@@ -1643,6 +1668,9 @@
       function stopFirebaseSync() {
         firebaseUnsubscribers.forEach((unsubscribe) => unsubscribe());
         firebaseUnsubscribers = [];
+        if (medicalRecordsUnsubscribe) medicalRecordsUnsubscribe();
+        medicalRecordsUnsubscribe = null;
+        activeMedicalRecordsGroup = null;
         firebaseSyncStarted = false;
       }
       function stopDeviceGate() {
@@ -1955,6 +1983,21 @@
           const key = patientDisplayId(patient);
           if (!byKey.has(key)) byKey.set(key, patient);
         });
+        [...medicalRecords].sort((a, b) => recordTimestamp(b).localeCompare(recordTimestamp(a))).forEach((record) => {
+          const key = String(record.patientKey || record.patientId || "").trim();
+          if (!key || byKey.has(key)) return;
+          byKey.set(key, {
+            id: `record:${record.id}`,
+            patientId: key,
+            date: record.date || recordTimestamp(record).slice(0, 10),
+            name: record.name || "Unnamed patient",
+            age: record.age || "",
+            sex: record.sex || "Male",
+            mobile: record.mobile || "",
+            diagnosis: record.diagnosis || record.details?.diagnosis || "",
+            customDiagnosis: record.customDiagnosis || record.details?.customDiagnosis || ""
+          });
+        });
         return [...byKey.values()];
       }
       function renderPatientSearch() {
@@ -1978,7 +2021,7 @@
         `).join("") : `<div class="empty">No previous patient found.</div>`;
       }
       function reusePatient(patientId) {
-        const patient = patients.find((item) => item.id === patientId);
+        const patient = uniquePatients().find((item) => item.id === patientId);
         if (!patient) return;
         $("#name").value = patient.name || "";
         $("#age").value = patient.age || "";
@@ -4536,7 +4579,11 @@ ${context}`;
           patientId: patientDisplayId(patient),
           patientKey: recordPatientKey(patient),
           name: patient.name,
+          age: patient.age || "",
+          sex: patient.sex || "",
           mobile: patient.mobile || "",
+          diagnosis: patient.diagnosis || "",
+          customDiagnosis: patient.customDiagnosis || "",
           date: activeRecordDate || patient.date,
           note: activeRecordDocs.visit ? htmlToPlainText(activeRecordDocs.visit) : $("#medicalNoteText").innerText,
           noteHtml: activeRecordDocs.visit || $("#medicalNoteText").innerHTML,
