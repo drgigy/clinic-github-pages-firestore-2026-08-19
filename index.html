@@ -1187,6 +1187,14 @@
         const group = sharedPatientGroup();
         return group && patientKey ? doc(db, "patientGroups", group, "patients", patientKey) : null;
       }
+      function normalisedMobile(value) {
+        return String(value || "").replace(/\D/g, "");
+      }
+      function sharedPatientIdentity(patient) {
+        const mobile = normalisedMobile(patient.mobile);
+        const patientKey = String(patientDisplayId(patient) || "").trim();
+        return mobile ? `mobile_${mobile}` : patientKey ? `uhid_${patientKey.replace(/\//g, "_")}` : "";
+      }
       function medicalRecordsCollectionRef() {
         const group = sharedPatientGroup();
         return group ? collection(db, "patientGroups", group, "medicalRecords") : userCollection("medicalRecords");
@@ -1426,9 +1434,11 @@
       }
       async function saveSharedPatientProfile(patient) {
         const patientKey = String(patientDisplayId(patient) || "").trim();
-        const patientRef = sharedPatientDoc(patientKey);
+        const patientIdentity = sharedPatientIdentity(patient);
+        const patientRef = sharedPatientDoc(patientIdentity);
         if (!patientRef) return;
         await setDoc(patientRef, {
+          patientIdentity,
           patientId: patientKey,
           name: patient.name || "",
           age: patient.age || "",
@@ -1896,6 +1906,11 @@
       function samePatientUhid(patient, uhid) {
         return String(patientDisplayId(patient) || "").trim() === String(uhid || "").trim();
       }
+      function samePatientMobile(a, b) {
+        const left = normalisedMobile(a?.mobile);
+        const right = normalisedMobile(b?.mobile);
+        return Boolean(left && right && left === right);
+      }
       async function updatePatientCommentsByUhid(sourcePatient, comments) {
         const uhid = patientDisplayId(sourcePatient);
         if (!uhid) return;
@@ -2040,11 +2055,11 @@
       function uniquePatients() {
         const byKey = new Map();
         [...patients].sort((a, b) => b.date.localeCompare(a.date)).forEach((patient) => {
-          const key = patientDisplayId(patient);
+          const key = sharedPatientIdentity(patient) || patientDisplayId(patient);
           if (!byKey.has(key)) byKey.set(key, patient);
         });
         sharedPatientProfiles.forEach((profile) => {
-          const key = String(profile.patientId || profile.patientKey || "").trim();
+          const key = String(profile.patientIdentity || sharedPatientIdentity(profile) || profile.patientId || profile.patientKey || "").trim();
           if (!key || byKey.has(key)) return;
           byKey.set(key, {
             ...profile,
@@ -2056,7 +2071,7 @@
           });
         });
         [...medicalRecords].sort((a, b) => recordTimestamp(b).localeCompare(recordTimestamp(a))).forEach((record) => {
-          const key = String(record.patientKey || record.patientId || "").trim();
+          const key = sharedPatientIdentity(record) || String(record.patientKey || record.patientId || "").trim();
           if (!key || byKey.has(key)) return;
           byKey.set(key, {
             id: `record:${record.id}`,
@@ -2151,6 +2166,7 @@
       function recordMatchesPatient(record, patient) {
         if (!patient) return false;
         const uhid = patientDisplayId(patient);
+        if (samePatientMobile(record, patient)) return true;
         if (record.patientId && String(record.patientId) === String(uhid)) return true;
         if (record.patientKey && String(record.patientKey) === String(uhid)) return true;
         return !record.patientId && !record.patientKey && record.patientAppointmentId === patient.id;
