@@ -1179,6 +1179,14 @@
       function sharedPatientGroup() {
         return String(appFeatures.sharedPatientGroup || "").trim();
       }
+      function sharedPatientsCollectionRef() {
+        const group = sharedPatientGroup();
+        return group ? collection(db, "patientGroups", group, "patients") : null;
+      }
+      function sharedPatientDoc(patientKey) {
+        const group = sharedPatientGroup();
+        return group && patientKey ? doc(db, "patientGroups", group, "patients", patientKey) : null;
+      }
       function medicalRecordsCollectionRef() {
         const group = sharedPatientGroup();
         return group ? collection(db, "patientGroups", group, "medicalRecords") : userCollection("medicalRecords");
@@ -1258,6 +1266,9 @@
       let deviceGateUnsubscribe = null;
       let medicalRecordsUnsubscribe = null;
       let activeMedicalRecordsGroup = null;
+      let sharedPatientsUnsubscribe = null;
+      let activeSharedPatientsGroup = null;
+      let sharedPatientProfiles = [];
       let adminNoteSettings = {
         authorizationKey: "",
         speechModel: "",
@@ -1408,9 +1419,28 @@
       async function savePatientToCloud(patient) {
         try {
           await setDoc(userDoc("patients", patient.id), patient, { merge: true });
+          await saveSharedPatientProfile(patient);
         } catch (error) {
           console.error("Cloud save failed", error);
         }
+      }
+      async function saveSharedPatientProfile(patient) {
+        const patientKey = String(patientDisplayId(patient) || "").trim();
+        const patientRef = sharedPatientDoc(patientKey);
+        if (!patientRef) return;
+        await setDoc(patientRef, {
+          patientId: patientKey,
+          name: patient.name || "",
+          age: patient.age || "",
+          sex: patient.sex || "",
+          mobile: patient.mobile || "",
+          diagnosis: patient.diagnosis || "",
+          customDiagnosis: patient.customDiagnosis || "",
+          comments: Array.isArray(patient.comments) ? patient.comments : [],
+          lastVisitDate: patient.date || selectedDate,
+          updatedAt: new Date().toISOString(),
+          updatedByUid: currentUserId()
+        }, { merge: true });
       }
       async function deletePatientFromCloud(id) {
         try {
@@ -1576,6 +1606,30 @@
           console.error("Cloud medical records sync failed", error);
         });
       }
+      function syncSharedPatients() {
+        const group = sharedPatientGroup();
+        if (!group) {
+          if (sharedPatientsUnsubscribe) sharedPatientsUnsubscribe();
+          sharedPatientsUnsubscribe = null;
+          activeSharedPatientsGroup = null;
+          sharedPatientProfiles = [];
+          renderPatientSearch();
+          renderDoctorPatientSearch();
+          return;
+        }
+        if (activeSharedPatientsGroup === group && sharedPatientsUnsubscribe) return;
+        if (sharedPatientsUnsubscribe) sharedPatientsUnsubscribe();
+        activeSharedPatientsGroup = group;
+        patients.forEach((patient) => saveSharedPatientProfile(patient).catch((error) => console.error("Shared patient profile save failed", error)));
+        const sharedPatientsRef = sharedPatientsCollectionRef();
+        sharedPatientsUnsubscribe = onSnapshot(sharedPatientsRef, (snapshot) => {
+          sharedPatientProfiles = snapshot.docs.map((item) => ({ id: `shared:${item.id}`, ...item.data() }));
+          renderPatientSearch();
+          renderDoctorPatientSearch();
+        }, (error) => {
+          console.error("Shared patient search sync failed", error);
+        });
+      }
       function startFirebaseSync() {
         if (firebaseSyncStarted) return;
         firebaseSyncStarted = true;
@@ -1599,6 +1653,7 @@
           appFeatures = { ...defaultAppFeatures, ...(snapshot.exists() ? snapshot.data() : {}) };
           applyAppFeatures();
           syncMedicalRecords();
+          syncSharedPatients();
           render();
         }, (error) => {
           console.error("Feature settings sync failed", error);
@@ -1607,6 +1662,7 @@
         firebaseUnsubscribers.push(onSnapshot(patientsQuery, (snapshot) => {
           patients = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
           ensureSequencePatientIds();
+          patients.forEach((patient) => saveSharedPatientProfile(patient).catch((error) => console.error("Shared patient profile save failed", error)));
           writeStore(userStoreKey(storeKey), JSON.stringify(patients));
           render();
         }, (error) => {
@@ -1671,6 +1727,10 @@
         if (medicalRecordsUnsubscribe) medicalRecordsUnsubscribe();
         medicalRecordsUnsubscribe = null;
         activeMedicalRecordsGroup = null;
+        if (sharedPatientsUnsubscribe) sharedPatientsUnsubscribe();
+        sharedPatientsUnsubscribe = null;
+        activeSharedPatientsGroup = null;
+        sharedPatientProfiles = [];
         firebaseSyncStarted = false;
       }
       function stopDeviceGate() {
@@ -1982,6 +2042,18 @@
         [...patients].sort((a, b) => b.date.localeCompare(a.date)).forEach((patient) => {
           const key = patientDisplayId(patient);
           if (!byKey.has(key)) byKey.set(key, patient);
+        });
+        sharedPatientProfiles.forEach((profile) => {
+          const key = String(profile.patientId || profile.patientKey || "").trim();
+          if (!key || byKey.has(key)) return;
+          byKey.set(key, {
+            ...profile,
+            id: profile.id || `shared:${key}`,
+            patientId: key,
+            date: profile.lastVisitDate || profile.date || selectedDate,
+            visitType: "Review",
+            mode: "In clinic"
+          });
         });
         [...medicalRecords].sort((a, b) => recordTimestamp(b).localeCompare(recordTimestamp(a))).forEach((record) => {
           const key = String(record.patientKey || record.patientId || "").trim();
@@ -4766,16 +4838,16 @@ ${context}`;
       }
       function latestPatientsByUhid() {
         const latest = new Map();
-        patients.forEach((patient) => {
+        uniquePatients().forEach((patient) => {
           const uhid = patientDisplayId(patient);
           if (!uhid) return;
           const existing = latest.get(uhid);
-          const existingKey = `${existing?.date || ""}-${existing?.createdAt || ""}-${existing?.id || ""}`;
-          const patientKey = `${patient.date || ""}-${patient.createdAt || ""}-${patient.id || ""}`;
+          const existingKey = `${existing?.date || existing?.lastVisitDate || ""}-${existing?.createdAt || existing?.updatedAt || ""}-${existing?.id || ""}`;
+          const patientKey = `${patient.date || patient.lastVisitDate || ""}-${patient.createdAt || patient.updatedAt || ""}-${patient.id || ""}`;
           if (!existing || patientKey > existingKey) latest.set(uhid, patient);
         });
         return [...latest.values()].sort((a, b) =>
-          `${b.date || ""}-${b.createdAt || ""}-${b.id || ""}`.localeCompare(`${a.date || ""}-${a.createdAt || ""}-${a.id || ""}`)
+          `${b.date || b.lastVisitDate || ""}-${b.createdAt || b.updatedAt || ""}-${b.id || ""}`.localeCompare(`${a.date || a.lastVisitDate || ""}-${a.createdAt || a.updatedAt || ""}-${a.id || ""}`)
         );
       }
 
