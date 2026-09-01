@@ -1116,6 +1116,7 @@
       const {
         collection,
         doc,
+        getDoc,
         setDoc,
         deleteDoc,
         onSnapshot,
@@ -1133,6 +1134,7 @@
       const diagnosesStore = "clinicDiagnoses.v1";
       const clinicNameStore = "clinicNameHtml.v1";
       const clinicNameStyleStore = "clinicNameStyle.v1";
+      const deviceIdStore = "clinicApprovedDeviceId.v1";
       const ambientModes = {
         visit: "Visit Note",
         prescription: "Rx",
@@ -1172,6 +1174,9 @@
       }
       function userFeatureDoc() {
         return doc(db, "adminUserFeatures", currentUserId());
+      }
+      function userDeviceDoc(deviceId = currentDeviceId()) {
+        return doc(db, "adminUserDevices", currentUserId(), "devices", deviceId);
       }
       function adminSettingsDoc() {
         return doc(db, "adminSettings", "speech");
@@ -1228,6 +1233,7 @@
       let ambientFloatPosition = null;
       let firebaseSyncStarted = false;
       let firebaseUnsubscribers = [];
+      let deviceGateUnsubscribe = null;
       let adminNoteSettings = {
         authorizationKey: "",
         speechModel: "default",
@@ -1280,6 +1286,19 @@
         }
       }
       function makeId() { return window.crypto?.randomUUID ? window.crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`; }
+      function currentDeviceId() {
+        const existing = readStore(deviceIdStore, "");
+        if (existing) return existing;
+        const deviceId = makeId();
+        writeStore(deviceIdStore, deviceId);
+        return deviceId;
+      }
+      function deviceLabel() {
+        const ua = navigator.userAgent || "";
+        const browser = /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : /Firefox\//.test(ua) ? "Firefox" : "Browser";
+        const platform = navigator.userAgentData?.platform || navigator.platform || "Device";
+        return `${browser} on ${platform}`;
+      }
       function yearPrefix(dateKey = selectedDate) { return String(new Date(`${dateKey}T00:00:00`).getFullYear()).slice(-2); }
       function isSequencePatientId(value, prefix = "") { return new RegExp(`^${prefix || "\\d{2}"}\\d{4}$`).test(String(value || "")); }
       function nextPatientSequenceId(dateKey = selectedDate, rows = patients) {
@@ -1460,6 +1479,60 @@
           console.error("User directory sync failed", error);
         }
       }
+      async function ensureDeviceRequest(user) {
+        const deviceId = currentDeviceId();
+        const deviceRef = userDeviceDoc(deviceId);
+        const snapshot = await getDoc(deviceRef);
+        const now = new Date().toISOString();
+        if (snapshot.exists()) {
+          return;
+        }
+        await setDoc(deviceRef, {
+          uid: user.uid,
+          email: user.email || "",
+          deviceId,
+          label: deviceLabel(),
+          status: "pending",
+          createdAt: now,
+          lastSeenAt: now
+        });
+      }
+      async function startDeviceGate(user) {
+        if (deviceGateUnsubscribe) deviceGateUnsubscribe();
+        stopFirebaseSync();
+        document.body.classList.add("auth-locked");
+        $("#signedInUser").textContent = "";
+        $("#loginError").textContent = "";
+        $("#loginStatus").textContent = "Checking device approval...";
+        try {
+          await registerSignedInUser(user);
+          await ensureDeviceRequest(user);
+        } catch (error) {
+          console.error("Device approval request failed", error);
+          $("#loginStatus").textContent = "Device approval request failed. Contact admin.";
+          return;
+        }
+        deviceGateUnsubscribe = onSnapshot(userDeviceDoc(), (snapshot) => {
+          const status = snapshot.exists() ? snapshot.data().status : "pending";
+          if (status === "approved") {
+            document.body.classList.remove("auth-locked");
+            $("#signedInUser").textContent = `Signed in: ${user.email || "Clinic user"}`;
+            $("#loginStatus").textContent = "";
+            $("#loginError").textContent = "";
+            startFirebaseSync();
+            return;
+          }
+          stopFirebaseSync();
+          document.body.classList.add("auth-locked");
+          $("#signedInUser").textContent = "";
+          $("#loginStatus").textContent = status === "rejected"
+            ? "This device is not approved. Contact admin."
+            : "This device is waiting for admin approval.";
+        }, (error) => {
+          console.error("Device approval sync failed", error);
+          $("#loginStatus").textContent = "Device approval could not be checked. Contact admin.";
+        });
+      }
       function startFirebaseSync() {
         if (firebaseSyncStarted) return;
         firebaseSyncStarted = true;
@@ -1555,6 +1628,10 @@
         firebaseUnsubscribers.forEach((unsubscribe) => unsubscribe());
         firebaseUnsubscribers = [];
         firebaseSyncStarted = false;
+      }
+      function stopDeviceGate() {
+        if (deviceGateUnsubscribe) deviceGateUnsubscribe();
+        deviceGateUnsubscribe = null;
       }
       function selected(group) { return document.querySelector(`[data-group="${group}"] .active`)?.dataset.value || ""; }
       function patientComments() {
@@ -5901,14 +5978,10 @@ ${context}`;
       });
       onAuthStateChanged(auth, (user) => {
         if (user) {
-          document.body.classList.remove("auth-locked");
-          $("#signedInUser").textContent = `Signed in: ${user.email || "Clinic user"}`;
-          $("#loginStatus").textContent = "";
-          $("#loginError").textContent = "";
-          registerSignedInUser(user);
-          startFirebaseSync();
+          startDeviceGate(user);
           return;
         }
+        stopDeviceGate();
         stopFirebaseSync();
         document.body.classList.add("auth-locked");
         $("#signedInUser").textContent = "";
