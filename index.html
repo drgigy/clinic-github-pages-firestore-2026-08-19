@@ -1244,7 +1244,7 @@
         doctorCredentials: "",
         patientComments: [],
         diagnoses: [],
-        staffTests: [],
+        staffTests: undefined,
         clinicName: "",
         clinicNameStyle: parseStoredObject(clinicNameStyleStore, { size: "medium", color: "#17222b" })
       };
@@ -1724,7 +1724,7 @@
             doctorCredentials: "",
             patientComments: [],
             diagnoses: [],
-            staffTests: [],
+            staffTests: undefined,
             clinicName: "",
             clinicNameStyle: parseStoredObject(clinicNameStyleStore, { size: "medium", color: "#17222b" }),
             ...(snapshot.exists() ? snapshot.data() : {})
@@ -1787,12 +1787,13 @@
           .sort((a, b) => defaultDiagnoses.includes(a) && !defaultDiagnoses.includes(b) ? -1 : !defaultDiagnoses.includes(a) && defaultDiagnoses.includes(b) ? 1 : a.localeCompare(b));
       }
       function staffTests() {
-        const stored = Array.isArray(clinicSettings.staffTests) ? clinicSettings.staffTests : parseStoredArray(staffTestsStore);
+        const hasCloudSetting = Array.isArray(clinicSettings.staffTests);
+        const stored = hasCloudSetting ? clinicSettings.staffTests : parseStoredArray(staffTestsStore);
         const cleaned = [...new Set(stored
           .map((item) => String(item || "").trim())
           .filter(Boolean))]
           .sort((a, b) => defaultTests.includes(a) && !defaultTests.includes(b) ? -1 : !defaultTests.includes(a) && defaultTests.includes(b) ? 1 : a.localeCompare(b));
-        return cleaned.length ? cleaned : [...defaultTests];
+        return hasCloudSetting ? cleaned : cleaned.length ? cleaned : [...defaultTests];
       }
       function normaliseComments(comments = []) {
         return [...new Set((Array.isArray(comments) ? comments : [])
@@ -4864,7 +4865,10 @@ ${context}`;
           if (p.visitType === "First consultation") result.first++;
           if (p.visitType === "Review") result.review++;
           result.diagnosis[p.diagnosis] = (result.diagnosis[p.diagnosis] || 0) + 1;
-          (p.tests || []).forEach((test) => result.tests[test]++);
+          (p.tests || []).forEach((test) => {
+            const cleanTest = String(test || "").trim();
+            if (cleanTest) result.tests[cleanTest] = (result.tests[cleanTest] || 0) + 1;
+          });
           if (p.consultPayMode === "Cash") result.consultCash += Number(p.consultAmount || 0);
           if (p.consultPayMode === "GPay") result.consultGpay += Number(p.consultAmount || 0);
           if (p.consultPayMode === "Card") result.consultCard += Number(p.consultAmount || 0);
@@ -4879,6 +4883,20 @@ ${context}`;
         result.cardTotal = result.consultCard + result.testCard;
         result.grandTotal = result.consultTotal + result.testTotal;
         return result;
+      }
+      function reportTestNames(rows = selectedMonthPatients()) {
+        return [...new Set([
+          ...tests,
+          ...rows.flatMap((patient) => Array.isArray(patient.tests) ? patient.tests : [])
+        ].map((test) => String(test || "").trim()).filter(Boolean))]
+          .sort((a, b) => tests.includes(a) && !tests.includes(b) ? -1 : !tests.includes(a) && tests.includes(b) ? 1 : a.localeCompare(b));
+      }
+      function patientTestNames(patient) {
+        return [...new Set([
+          ...tests,
+          ...(Array.isArray(patient.tests) ? patient.tests : [])
+        ].map((test) => String(test || "").trim()).filter(Boolean))]
+          .sort((a, b) => tests.includes(a) && !tests.includes(b) ? -1 : !tests.includes(a) && tests.includes(b) ? 1 : a.localeCompare(b));
       }
       function selectedMonthAccounts() { return accounts.filter((entry) => entry.date?.slice(0, 7) === selectedDate.slice(0, 7)); }
       function accountTotals(rows = selectedMonthAccounts()) {
@@ -4994,7 +5012,7 @@ ${context}`;
             : p.attendance === "No show"
               ? `<span class="status-pill noshow">No show</span>`
               : "";
-          const selectedTests = (p.tests || []).filter((test) => tests.includes(test));
+          const selectedTests = Array.isArray(p.tests) ? p.tests.filter(Boolean) : [];
           const diagnosis = doctorDiagnosis(p);
           return `
           <article class="patient ${hasNote ? "patient-seen-note" : ""}">
@@ -5009,7 +5027,7 @@ ${context}`;
                   </div>
                 </div>
                 <div class="doctor-test-centre">
-                  ${selectedTests.map((test) => `<span class="selected-test-pill">${test}</span>`).join("")}
+                  ${selectedTests.map((test) => `<span class="selected-test-pill">${escapeHtml(test)}</span>`).join("")}
                 </div>
                 <div class="doctor-consult-meta">
                   <span class="doctor-detail-pill">${doctorAbbreviation(p.visitType)}</span>
@@ -5027,7 +5045,7 @@ ${context}`;
             <div class="post-consult-block">
               <div class="post-consult-left">
                 <div class="attendance-actions patient-row-actions"><button class="choice ${p.attendance === "Came" ? "came" : ""}" data-attendance="${p.id}:Came" type="button">Came</button><button class="choice ${p.attendance === "No show" ? "noshow" : ""}" data-attendance="${p.id}:No show" type="button">No show</button><button class="secondary medical-record-btn" data-medical-record="${p.id}" type="button">Medical Record</button><button class="secondary" data-edit-patient="${p.id}" type="button">Edit</button></div>
-                <div class="test-options">${tests.map((test) => `<label class="test-check"><input type="checkbox" data-test="${p.id}:${test}" ${p.tests?.includes(test) ? "checked" : ""} />${test}</label>`).join("")}</div>
+                <div class="test-options">${patientTestNames(p).map((test) => `<label class="test-check"><input type="checkbox" data-test-patient="${p.id}" data-test-name="${escapeHtml(test)}" ${p.tests?.includes(test) ? "checked" : ""} />${escapeHtml(test)}</label>`).join("")}</div>
               </div>
               <div class="payment-group">
                 <div class="payment-row"><span class="payment-label">Consultation</span><input class="amount-input" data-amount="${p.id}:consultAmount" value="${p.consultAmount || ""}" placeholder="0" inputmode="numeric" maxlength="4" pattern="[0-9]{0,4}" /><button class="choice ${p.consultPayMode === "Cash" ? "cash" : ""}" data-pay="${p.id}:consultPayMode:Cash" type="button">Cash</button><button class="choice ${p.consultPayMode === "GPay" ? "gpay" : ""}" data-pay="${p.id}:consultPayMode:GPay" type="button">GPay</button><button class="choice ${p.consultPayMode === "Card" ? "gpay" : ""}" data-pay="${p.id}:consultPayMode:Card" type="button">Card</button></div>
@@ -5115,13 +5133,15 @@ ${context}`;
         $("#statDailyTotal").textContent = money(summary.grandTotal);
       }
       function renderReport() {
-        const summary = totals(selectedMonthPatients());
+        const reportPatients = selectedMonthPatients();
+        const summary = totals(reportPatients);
+        const testNames = reportTestNames(reportPatients);
         const account = accountTotals();
         const profit = summary.grandTotal - account.expense;
         const noShowRate = summary.total ? Math.round((summary.noShow / summary.total) * 100) : 0;
         $("#reportGrid").innerHTML = [["Total booked", summary.total], ["Came", summary.came], ["Missed", summary.total - summary.came], ["No show", summary.noShow], ["Cash total", money(summary.cashTotal)], ["GPay total", money(summary.gpayTotal)], ["Card total", money(summary.cardTotal)], ["First consultation", summary.first], ["Review", summary.review], ["Monthly total", money(summary.grandTotal)], ["Expense", money(account.expense)], ["Profit", money(profit)]].map(([label, value]) => `<div class="report-item"><span>${label}</span><strong>${value}</strong></div>`).join("");
         const common = Object.entries(summary.diagnosis).sort((a, b) => b[1] - a[1])[0];
-        $("#reportList").innerHTML = `<div class="report-row"><span>No show rate</span><strong>${noShowRate}%</strong></div><div class="report-row"><span>Most common diagnosis</span><strong>${common ? `${common[0]}: ${common[1]}` : "-"}</strong></div><div class="report-row"><span>In clinic vs teleconsultation</span><strong>${summary.clinic} / ${summary.tele}</strong></div><div class="report-row"><span>Tests ordered</span><strong>${tests.map((test) => `${test}: ${summary.tests[test]}`).join(" · ")}</strong></div><div class="report-row"><span>Consultation payment</span><strong>Cash ${money(summary.consultCash)} · GPay ${money(summary.consultGpay)} · Card ${money(summary.consultCard)} · Total ${money(summary.consultTotal)}</strong></div><div class="report-row"><span>Test payment</span><strong>Cash ${money(summary.testCash)} · GPay ${money(summary.testGpay)} · Card ${money(summary.testCard)} · Total ${money(summary.testTotal)}</strong></div><div class="report-row"><span>Total collection</span><strong>Cash ${money(summary.cashTotal)} · GPay ${money(summary.gpayTotal)} · Card ${money(summary.cardTotal)} · Total ${money(summary.grandTotal)}</strong></div>`;
+        $("#reportList").innerHTML = `<div class="report-row"><span>No show rate</span><strong>${noShowRate}%</strong></div><div class="report-row"><span>Most common diagnosis</span><strong>${common ? `${common[0]}: ${common[1]}` : "-"}</strong></div><div class="report-row"><span>In clinic vs teleconsultation</span><strong>${summary.clinic} / ${summary.tele}</strong></div><div class="report-row"><span>Tests ordered</span><strong>${testNames.length ? testNames.map((test) => `${test}: ${summary.tests[test] || 0}`).join(" · ") : "-"}</strong></div><div class="report-row"><span>Consultation payment</span><strong>Cash ${money(summary.consultCash)} · GPay ${money(summary.consultGpay)} · Card ${money(summary.consultCard)} · Total ${money(summary.consultTotal)}</strong></div><div class="report-row"><span>Test payment</span><strong>Cash ${money(summary.testCash)} · GPay ${money(summary.testGpay)} · Card ${money(summary.testCard)} · Total ${money(summary.testTotal)}</strong></div><div class="report-row"><span>Total collection</span><strong>Cash ${money(summary.cashTotal)} · GPay ${money(summary.gpayTotal)} · Card ${money(summary.cardTotal)} · Total ${money(summary.grandTotal)}</strong></div>`;
       }
       function renderAccounts() {
         const clinic = totals(selectedMonthPatients());
@@ -5737,8 +5757,9 @@ ${context}`;
       function monthlyMessage() {
         const rows = selectedMonthPatients();
         const summary = totals(rows);
+        const testNames = reportTestNames(rows);
         const noShowRate = summary.total ? Math.round((summary.noShow / summary.total) * 100) : 0;
-        return `Monthly Report - ${monthLabel(selectedDate)}\n\nTotal booked: ${summary.total}\nCame: ${summary.came}\nMissed: ${summary.total - summary.came}\nNo show: ${summary.noShow}\nNo show rate: ${noShowRate}%\nFirst consultation: ${summary.first}\nReview: ${summary.review}\n\nTests ordered\n${tests.map((test) => `${test}: ${summary.tests[test]}`).join("\n")}\n\nPayments\nConsultation Cash: ${money(summary.consultCash)}\nConsultation GPay: ${money(summary.consultGpay)}\nConsultation Card: ${money(summary.consultCard)}\nConsultation Total: ${money(summary.consultTotal)}\nTests Cash: ${money(summary.testCash)}\nTests GPay: ${money(summary.testGpay)}\nTests Card: ${money(summary.testCard)}\nTests Total: ${money(summary.testTotal)}\nCash Total: ${money(summary.cashTotal)}\nGPay Total: ${money(summary.gpayTotal)}\nCard Total: ${money(summary.cardTotal)}\nMonthly Total: ${money(summary.grandTotal)}`;
+        return `Monthly Report - ${monthLabel(selectedDate)}\n\nTotal booked: ${summary.total}\nCame: ${summary.came}\nMissed: ${summary.total - summary.came}\nNo show: ${summary.noShow}\nNo show rate: ${noShowRate}%\nFirst consultation: ${summary.first}\nReview: ${summary.review}\n\nTests ordered\n${testNames.length ? testNames.map((test) => `${test}: ${summary.tests[test] || 0}`).join("\n") : "-"}\n\nPayments\nConsultation Cash: ${money(summary.consultCash)}\nConsultation GPay: ${money(summary.consultGpay)}\nConsultation Card: ${money(summary.consultCard)}\nConsultation Total: ${money(summary.consultTotal)}\nTests Cash: ${money(summary.testCash)}\nTests GPay: ${money(summary.testGpay)}\nTests Card: ${money(summary.testCard)}\nTests Total: ${money(summary.testTotal)}\nCash Total: ${money(summary.cashTotal)}\nGPay Total: ${money(summary.gpayTotal)}\nCard Total: ${money(summary.cardTotal)}\nMonthly Total: ${money(summary.grandTotal)}`;
       }
       function whatsAppUrl(message) {
         const phone = $("#doctorPhone").value.replace(/\D/g, "");
@@ -5760,6 +5781,7 @@ ${context}`;
       function printAccountsReport() {
         const report = selectedAccountsReport();
         const clinic = totals(report.patients);
+        const testNames = reportTestNames(report.patients);
         const account = accountTotals(report.accounts);
         const rows = report.accounts;
         const totalIncome = clinic.grandTotal + account.otherIncome;
@@ -5787,7 +5809,7 @@ ${context}`;
           ["Teleconsultation", clinic.tele],
           ["Most common diagnosis", common ? `${common[0]}: ${common[1]}` : "-"]
         ].map(([label, value]) => `<tr><td>${escapeHtml(label)}</td><td>${escapeHtml(value)}</td></tr>`).join("");
-        const testRows = tests.map((test) => `<tr><td>${escapeHtml(test)}</td><td>${clinic.tests[test] || 0}</td></tr>`).join("");
+        const testRows = testNames.map((test) => `<tr><td>${escapeHtml(test)}</td><td>${clinic.tests[test] || 0}</td></tr>`).join("") || `<tr><td colspan="2">No tests ordered</td></tr>`;
         const bankRows = Object.entries(account.bank).map(([bank, amount]) => `<tr><td>${escapeHtml(bank)}</td><td>${money(amount)}</td></tr>`).join("") || `<tr><td colspan="2">No remittance entered</td></tr>`;
         const expenseRows = Object.entries(account.expenseCategory).map(([category, amount]) => `<tr><td>${escapeHtml(category)}</td><td>${money(amount)}</td></tr>`).join("") || `<tr><td colspan="2">No expenses entered</td></tr>`;
         const manualIncomeRows = rows.filter((entry) => entry.type !== "Expense").map((entry) => `<tr><td>${escapeHtml(entry.date)}</td><td>${escapeHtml(entry.type || "-")}</td><td>${escapeHtml(entry.bank || "-")}</td><td>${escapeHtml(entry.mode || "-")}</td><td>${money(entry.amount)}</td><td>${escapeHtml(entry.note || "")}</td></tr>`).join("") || `<tr><td colspan="6">No manual income or remittance entries</td></tr>`;
@@ -6183,7 +6205,7 @@ ${context}`;
         if (event.target.matches("#neuroAnalysisRange, #neuroAnalysisMonth, #neuroAnalysisFromMonth, #neuroAnalysisToMonth, #neuroAnalysisYear")) renderNeuroReview();
         if (event.target.matches("[data-neuro-source]")) loadNeuroCenterIntoRow(event.target.closest("[data-neuro-source-row]"));
         if (event.target.matches("[data-ambient-mode-select]")) setAmbientMode(event.target.value);
-        if (event.target.dataset.test) { const [id, test] = event.target.dataset.test.split(":"); toggleTest(id, test, event.target.checked); }
+        if (event.target.dataset.testPatient) toggleTest(event.target.dataset.testPatient, event.target.dataset.testName, event.target.checked);
         if (event.target.id === "doctorPhone") { save(); renderMessages(); }
         if (event.target.closest("#medicalRecordScreen") && !event.target.matches("[data-ambient-mode-select]")) setRecordDirty();
       });
