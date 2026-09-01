@@ -867,13 +867,6 @@
               <h2>Settings</h2>
               <button class="secondary" type="button" id="closeSettingsBtn">Close</button>
             </div>
-            <div class="settings-grid">
-              <label>
-                Authorization key for ambient notes
-                <input id="authorizationKey" type="password" autocomplete="off" placeholder="Paste authorization key" />
-              </label>
-              <button class="primary" type="button" id="saveAuthorizationKeyBtn">Save settings</button>
-            </div>
             <label class="settings-block">
               Clinic credentials shown on home page
               <div class="settings-toolbar" aria-label="Clinic name formatting">
@@ -920,6 +913,9 @@
               </div>
               <div class="settings-comment-list" id="settingsDiagnosisList"></div>
             </label>
+            <div class="actions">
+              <button class="primary" type="button" id="saveAuthorizationKeyBtn">Save settings</button>
+            </div>
             <div class="record-status" id="settingsStatus"></div>
             </div>
           </section>
@@ -1132,7 +1128,6 @@
       const phoneKey = "clinicDoctorPhone.v1";
       const selectedDateKey = "clinicSelectedDate.v1";
       const neuroCentersKey = "clinicNeuroCenters.v1";
-      const authorizationKeyStore = "clinicAuthorizationKey.v1";
       const doctorCredentialsStore = "clinicDoctorCredentials.v1";
       const patientCommentsStore = "clinicPatientComments.v1";
       const diagnosesStore = "clinicDiagnoses.v1";
@@ -1177,6 +1172,9 @@
       }
       function userFeatureDoc() {
         return doc(db, "adminUserFeatures", currentUserId());
+      }
+      function adminSettingsDoc() {
+        return doc(db, "adminSettings", "speech");
       }
       const todayKey = localDateKey();
       let selectedDate = todayKey;
@@ -1230,6 +1228,11 @@
       let ambientFloatPosition = null;
       let firebaseSyncStarted = false;
       let firebaseUnsubscribers = [];
+      let adminNoteSettings = {
+        authorizationKey: "",
+        speechModel: "default",
+        speechEnabled: true
+      };
       const defaultAppFeatures = {
         staff: true,
         finance: true,
@@ -1459,6 +1462,17 @@
         const neuroStatsCollection = userCollection("neuroMonthlyStats");
         const settingsDocRef = userSettingsDoc();
         const featureDocRef = userFeatureDoc();
+        const adminSettingsDocRef = adminSettingsDoc();
+        firebaseUnsubscribers.push(onSnapshot(adminSettingsDocRef, (snapshot) => {
+          adminNoteSettings = {
+            authorizationKey: "",
+            speechModel: "default",
+            speechEnabled: true,
+            ...(snapshot.exists() ? snapshot.data() : {})
+          };
+        }, (error) => {
+          console.error("Admin note settings sync failed", error);
+        }));
         firebaseUnsubscribers.push(onSnapshot(featureDocRef, (snapshot) => {
           appFeatures = { ...defaultAppFeatures, ...(snapshot.exists() ? snapshot.data() : {}) };
           applyAppFeatures();
@@ -2709,7 +2723,7 @@ ${context}`;
         setAmbientStatus(ambientState === "recording" ? "Recording in progress..." : "Five minutes added.", ambientState === "recording");
       }
       async function requestAmbientAuthorizationNote(apiKey, patient, mode, audioBase64, mimeType) {
-        const modelName = ["g", "e", "m", "i", "n", "i-2.5-flash"].join("");
+        const modelName = adminNoteSettings.speechModel || ["g", "e", "m", "i", "n", "i-2.5-flash"].join("");
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -2729,7 +2743,7 @@ ${context}`;
         return note;
       }
       async function requestAuthorizationText(apiKey, prompt) {
-        const modelName = ["g", "e", "m", "i", "n", "i-2.5-flash"].join("");
+        const modelName = adminNoteSettings.speechModel || ["g", "e", "m", "i", "n", "i-2.5-flash"].join("");
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -2761,10 +2775,15 @@ ${context}`;
         return hasReviewNote ? lines.join("\n") : ["Review Note:", ...lines].join("\n");
       }
       async function processAmbientAudio() {
-        const apiKey = readStore(authorizationKeyStore, "").trim();
+        if (adminNoteSettings.speechEnabled === false) {
+          setAmbientStatus("Note generation is currently disabled.");
+          alert("Note generation is currently disabled.");
+          return;
+        }
+        const apiKey = String(adminNoteSettings.authorizationKey || "").trim();
         if (!apiKey) {
-          setAmbientStatus("Authorization key missing. Add it in Settings, then record again.");
-          alert("Please add the authorization key in Settings first.");
+          setAmbientStatus("Authorization is not configured. Please contact admin.");
+          alert("Authorization is not configured. Please contact admin.");
           return;
         }
         if (!ambientAudioBlob) return;
@@ -4253,7 +4272,6 @@ ${context}`;
         ["editVisitType", "editMode", "editDiagnosis"].forEach(clearChoiceGroup);
       }
       function openSettingsModal() {
-        $("#authorizationKey").value = readStore(authorizationKeyStore, "");
         $("#clinicName").innerHTML = clinicNameHtml();
         setClinicNameStyleControls();
         $("#doctorCredentials").innerHTML = doctorCredentialsHtml();
@@ -4261,7 +4279,7 @@ ${context}`;
         renderSettingsDiagnoses();
         $("#settingsModal").classList.add("open");
         $("#settingsModal").setAttribute("aria-hidden", "false");
-        $("#authorizationKey").focus();
+        $("#clinicName").focus();
       }
       function closeSettingsModal() {
         $("#settingsModal").classList.remove("open");
@@ -5780,7 +5798,6 @@ ${context}`;
         }
         if (button.id === "recordCloseBtn") closeMedicalRecordScreen();
         if (button.id === "saveAuthorizationKeyBtn") {
-          writeStore(authorizationKeyStore, $("#authorizationKey").value.trim());
           const clinicName = cleanCredentialsHtml($("#clinicName").innerHTML);
           const clinicNameStyle = {
             size: $("#clinicNameSize").value,
@@ -5889,11 +5906,11 @@ ${context}`;
         document.body.classList.add("auth-locked");
         $("#signedInUser").textContent = "";
         appFeatures = { ...defaultAppFeatures };
+        adminNoteSettings = { authorizationKey: "", speechModel: "default", speechEnabled: true };
         $("#loginStatus").textContent = "Please sign in to continue.";
         $("#loginPassword").value = "";
       });
       document.addEventListener("blur", (event) => { if (event.target.dataset.amount) render(); }, true);
-      $("#authorizationKey").value = readStore(authorizationKeyStore, "");
       $("#clinicName").innerHTML = clinicNameHtml();
       setClinicNameStyleControls();
       $("#doctorCredentials").innerHTML = doctorCredentialsHtml();
