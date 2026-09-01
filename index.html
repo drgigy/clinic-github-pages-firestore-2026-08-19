@@ -2107,6 +2107,44 @@
         $("#patientSearch").value = `${patient.name} (${patientDisplayId(patient)})`;
         $("#patientSearchResults").innerHTML = `<div class="empty">Previous patient selected. Save Patient will add a new appointment for ${dateLabel(selectedDate)}.</div>`;
       }
+      async function addSearchPatientToToday(patientId) {
+        const source = uniquePatients().find((item) => item.id === patientId);
+        if (!source) return;
+        const uhid = patientDisplayId(source);
+        const existingToday = selectedDayPatients().find((patient) => samePatientUhid(patient, uhid));
+        if (existingToday) {
+          await openMedicalRecord(existingToday.id);
+          return;
+        }
+        const diagnosis = source.diagnosis || (source.customDiagnosis ? "Others" : "Others");
+        const patient = {
+          id: makeId(),
+          patientId: uhid,
+          date: selectedDate,
+          name: source.name || "",
+          age: source.age || "",
+          sex: source.sex || "Male",
+          mobile: source.mobile || "",
+          comments: Array.isArray(source.comments) ? source.comments : [],
+          customDiagnosis: source.customDiagnosis || (source.diagnosis && !reusableDiagnoses().includes(source.diagnosis) ? source.diagnosis : ""),
+          visitType: "Review",
+          mode: "In clinic",
+          diagnosis,
+          attendance: "",
+          callbackStatus: "",
+          tests: [],
+          consultAmount: "",
+          consultPayMode: "",
+          testAmount: "",
+          testPayMode: ""
+        };
+        patients.push(patient);
+        await savePatientToCloud(patient);
+        save();
+        doctorSearchQuery = "";
+        render();
+        await openMedicalRecord(patient.id);
+      }
       function recordIdFor(patient) { return `${patient.id}_${patient.date}`; }
       function activeRecordPatient() { return findPatientForRecord(activeRecordPatientId); }
       function recordPatientKey(patient) { return String(patientDisplayId(patient) || "").trim(); }
@@ -5851,7 +5889,7 @@ ${context}`;
           return;
         }
         if (button.dataset.doctorOpenPatient) {
-          await openMedicalRecord(button.dataset.doctorOpenPatient);
+          await addSearchPatientToToday(button.dataset.doctorOpenPatient);
           return;
         }
         if (button.dataset.mainTab) {
