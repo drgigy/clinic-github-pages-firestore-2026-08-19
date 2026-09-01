@@ -1039,7 +1039,7 @@
         </div>
           <div class="record-actions">
           <button class="secondary" type="button" id="recordPrintPrescriptionBtn" data-feature="printPrescription">Print Prescription</button>
-          <button class="secondary" type="button" id="recordAddOnBtn" data-feature="voice" hidden>Add On</button>
+          <button class="secondary" type="button" id="recordAddOnBtn" data-feature="woyzNote" hidden>Add On</button>
           <button class="secondary smart-chart-button" type="button" id="recordSummaryBtn" data-feature="smartChart" style="background:#dc2626;color:#fff;box-shadow:inset 0 0 0 2px #991b1b,0 1px 4px rgba(153,27,27,.22);">Smart Chart</button>
           <button class="secondary" type="button" id="recordDiagnosisBtn" data-feature="diagnosis">Diagnosis</button>
           <button class="secondary" type="button" id="recordCommentsBtn" data-feature="comments">Comments</button>
@@ -1239,7 +1239,6 @@
         followup: true,
         whatsapp: true,
         accounts: true,
-        voice: true,
         typedNote: true,
         woyzNote: true,
         printPrescription: true,
@@ -1439,7 +1438,7 @@
           whatsappExpanded = false;
           document.querySelector(".preview-area")?.setAttribute("hidden", "");
         }
-        if (!featureEnabled("voice")) {
+        if (!featureEnabled("woyzNote")) {
           stopAmbientTracks({ releaseMic: true });
           $("#ambientDock")?.setAttribute("hidden", "");
         }
@@ -5719,7 +5718,7 @@ ${context}`;
           activeRecordDirty = true;
         }
         if (button.dataset.newRecord && featureEnabled("typedNote")) createNewMedicalEntry();
-        if (button.dataset.ambientRecord && featureEnabled("woyzNote") && featureEnabled("voice")) createNewMedicalEntry("ambient");
+        if (button.dataset.ambientRecord && featureEnabled("woyzNote")) createNewMedicalEntry("ambient");
         if (button.dataset.openDraftRecord) openDraftMedicalEntry(button.dataset.openDraftRecord);
         if (button.dataset.openRecord) {
           await openMedicalRecord(activeRecordPatientId, button.dataset.openRecord);
