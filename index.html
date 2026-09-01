@@ -1191,9 +1191,11 @@
         return String(value || "").replace(/\D/g, "");
       }
       function sharedPatientIdentity(patient) {
-        const mobile = normalisedMobile(patient.mobile);
+        const existingIdentity = String(patient.sharedPatientIdentity || patient.patientIdentity || "").trim();
+        if (existingIdentity && !existingIdentity.startsWith("mobile_")) return existingIdentity;
         const patientKey = String(patientDisplayId(patient) || "").trim();
-        return mobile ? `mobile_${mobile}` : patientKey ? `uhid_${patientKey.replace(/\//g, "_")}` : "";
+        const owner = String(patient.ownerUid || currentUserId()).trim();
+        return patientKey ? `patient_${owner}_${patientKey.replace(/[^a-zA-Z0-9_-]+/g, "_")}` : "";
       }
       function medicalRecordsCollectionRef() {
         const group = sharedPatientGroup();
@@ -1299,6 +1301,7 @@
       };
       let appFeatures = { ...defaultAppFeatures };
       let reusedPatientUhid = "";
+      let reusedPatientIdentity = "";
       let editingPatientId = "";
       const neuroPinCode = "2600";
       const neuroSources = {
@@ -1439,6 +1442,7 @@
         if (!patientRef) return;
         await setDoc(patientRef, {
           patientIdentity,
+          sharedPatientIdentity: patientIdentity,
           patientId: patientKey,
           name: patient.name || "",
           age: patient.age || "",
@@ -1633,7 +1637,9 @@
         patients.forEach((patient) => saveSharedPatientProfile(patient).catch((error) => console.error("Shared patient profile save failed", error)));
         const sharedPatientsRef = sharedPatientsCollectionRef();
         sharedPatientsUnsubscribe = onSnapshot(sharedPatientsRef, (snapshot) => {
-          sharedPatientProfiles = snapshot.docs.map((item) => ({ id: `shared:${item.id}`, ...item.data() }));
+          sharedPatientProfiles = snapshot.docs
+            .map((item) => ({ id: `shared:${item.id}`, ...item.data() }))
+            .filter((patient) => !String(patient.patientIdentity || patient.sharedPatientIdentity || patient.id || "").startsWith("mobile_"));
           renderPatientSearch();
           renderDoctorPatientSearch();
         }, (error) => {
@@ -1906,11 +1912,6 @@
       function samePatientUhid(patient, uhid) {
         return String(patientDisplayId(patient) || "").trim() === String(uhid || "").trim();
       }
-      function samePatientMobile(a, b) {
-        const left = normalisedMobile(a?.mobile);
-        const right = normalisedMobile(b?.mobile);
-        return Boolean(left && right && left === right);
-      }
       async function updatePatientCommentsByUhid(sourcePatient, comments) {
         const uhid = patientDisplayId(sourcePatient);
         if (!uhid) return;
@@ -2119,6 +2120,7 @@
         setChoiceByValue("mode", patient.mode || "In clinic");
         setSelectedPatientComments("patientComments", patient.comments || []);
         reusedPatientUhid = patientDisplayId(patient);
+        reusedPatientIdentity = sharedPatientIdentity(patient);
         $("#patientSearch").value = `${patient.name} (${patientDisplayId(patient)})`;
         $("#patientSearchResults").innerHTML = `<div class="empty">Previous patient selected. Save Patient will add a new appointment for ${dateLabel(selectedDate)}.</div>`;
       }
@@ -2135,6 +2137,7 @@
         const patient = {
           id: makeId(),
           patientId: uhid,
+          sharedPatientIdentity: sharedPatientIdentity(source),
           date: selectedDate,
           name: source.name || "",
           age: source.age || "",
@@ -2166,7 +2169,9 @@
       function recordMatchesPatient(record, patient) {
         if (!patient) return false;
         const uhid = patientDisplayId(patient);
-        if (samePatientMobile(record, patient)) return true;
+        const recordIdentity = String(record.sharedPatientIdentity || record.patientIdentity || "").trim();
+        const patientIdentity = sharedPatientIdentity(patient);
+        if (recordIdentity && patientIdentity && recordIdentity === patientIdentity) return true;
         if (record.patientId && String(record.patientId) === String(uhid)) return true;
         if (record.patientKey && String(record.patientKey) === String(uhid)) return true;
         return !record.patientId && !record.patientKey && record.patientAppointmentId === patient.id;
@@ -3156,6 +3161,7 @@ ${context}`;
           patientAppointmentId: patient.id,
           patientId: patientDisplayId(patient),
           patientKey: recordPatientKey(patient),
+          sharedPatientIdentity: sharedPatientIdentity(patient),
           name: patient.name,
           mobile: patient.mobile || "",
           date: patient.date || localDateKey(),
@@ -5803,13 +5809,14 @@ ${context}`;
         const visitType = selected("visitType"), mode = selected("mode"), diagnosis = selected("diagnosis");
         if (!visitType || !mode || !diagnosis) { alert("Please select visit type, consultation mode, and diagnosis."); return; }
         const id = makeId();
-        const reusedPatient = reusedPatientUhid ? patients.find((item) => samePatientUhid(item, reusedPatientUhid)) : null;
-        const patient = { id, patientId: reusedPatientUhid || nextPatientSequenceId(selectedDate), date: selectedDate, name: $("#name").value.trim(), age: $("#age").value.trim(), sex: $("#sex").value, mobile: $("#mobile").value.trim(), comments: selectedPatientComments("patientComments"), customDiagnosis: reusedPatient?.customDiagnosis || "", visitType, mode, diagnosis, attendance: "", callbackStatus: "", tests: [], consultAmount: "", consultPayMode: "", testAmount: "", testPayMode: "" };
+        const reusedPatient = reusedPatientUhid ? uniquePatients().find((item) => samePatientUhid(item, reusedPatientUhid) || sharedPatientIdentity(item) === reusedPatientIdentity) : null;
+        const patient = { id, patientId: reusedPatientUhid || nextPatientSequenceId(selectedDate), sharedPatientIdentity: reusedPatientIdentity || "", date: selectedDate, name: $("#name").value.trim(), age: $("#age").value.trim(), sex: $("#sex").value, mobile: $("#mobile").value.trim(), comments: selectedPatientComments("patientComments"), customDiagnosis: reusedPatient?.customDiagnosis || "", visitType, mode, diagnosis, attendance: "", callbackStatus: "", tests: [], consultAmount: "", consultPayMode: "", testAmount: "", testPayMode: "" };
         patients.push(patient);
         savePatientToCloud(patient);
         event.target.reset();
         setSelectedPatientComments("patientComments", []);
         reusedPatientUhid = "";
+        reusedPatientIdentity = "";
         $("#patientSearchResults").innerHTML = "";
         $$("[data-group]").forEach((group) => group.querySelectorAll(".choice").forEach((button) => button.classList.remove("active")));
         closeAddPatientModal();
