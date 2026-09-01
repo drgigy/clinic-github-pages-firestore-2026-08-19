@@ -1173,10 +1173,10 @@
         return doc(db, "users", currentUserId(), "settings", "clinic");
       }
       function userDirectoryDoc() {
-        return doc(db, "admin", "userDirectory", currentUserId());
+        return doc(db, "adminUserDirectory", currentUserId());
       }
       function userFeatureDoc() {
-        return doc(db, "admin", "userFeatures", currentUserId());
+        return doc(db, "adminUserFeatures", currentUserId());
       }
       const todayKey = localDateKey();
       let selectedDate = todayKey;
