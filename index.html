@@ -913,6 +913,14 @@
               </div>
               <div class="settings-comment-list" id="settingsDiagnosisList"></div>
             </label>
+            <label class="settings-block">
+              Staff tests
+              <div class="settings-grid">
+                <input id="newStaffTest" autocomplete="off" placeholder="Example: Nerve test, EEG, MRI" />
+                <button class="primary" type="button" id="addStaffTestBtn">+</button>
+              </div>
+              <div class="settings-comment-list" id="settingsTestsList"></div>
+            </label>
             <div class="actions">
               <button class="primary" type="button" id="saveAuthorizationKeyBtn">Save settings</button>
             </div>
@@ -1124,7 +1132,8 @@
         orderBy
       } = cloudDataModule;
 
-      const tests = ["Nerve test", "EEG", "BAER", "VEP", "MRI", "CT scan"];
+      const defaultTests = ["Nerve test", "EEG", "BAER", "VEP", "MRI", "CT scan"];
+      let tests = [...defaultTests];
       const storeKey = "clinicDailyPatients.v1";
       const phoneKey = "clinicDoctorPhone.v1";
       const selectedDateKey = "clinicSelectedDate.v1";
@@ -1132,6 +1141,7 @@
       const doctorCredentialsStore = "clinicDoctorCredentials.v1";
       const patientCommentsStore = "clinicPatientComments.v1";
       const diagnosesStore = "clinicDiagnoses.v1";
+      const staffTestsStore = "clinicStaffTests.v1";
       const clinicNameStore = "clinicNameHtml.v1";
       const clinicNameStyleStore = "clinicNameStyle.v1";
       const deviceIdStore = "clinicApprovedDeviceId.v1";
@@ -1200,6 +1210,7 @@
         doctorCredentials: "",
         patientComments: [],
         diagnoses: [],
+        staffTests: [],
         clinicName: "",
         clinicNameStyle: parseStoredObject(clinicNameStyleStore, { size: "medium", color: "#17222b" })
       };
@@ -1597,6 +1608,7 @@
             doctorCredentials: "",
             patientComments: [],
             diagnoses: [],
+            staffTests: [],
             clinicName: "",
             clinicNameStyle: parseStoredObject(clinicNameStyleStore, { size: "medium", color: "#17222b" }),
             ...(snapshot.exists() ? snapshot.data() : {})
@@ -1604,6 +1616,8 @@
           writeStore(doctorCredentialsStore, clinicSettings.doctorCredentials || "");
           writeStore(patientCommentsStore, JSON.stringify(patientComments()));
           writeStore(diagnosesStore, JSON.stringify(reusableDiagnoses()));
+          tests = staffTests();
+          writeStore(staffTestsStore, JSON.stringify(tests));
           writeStore(clinicNameStore, clinicSettings.clinicName || "");
           writeStore(clinicNameStyleStore, JSON.stringify(clinicNameStyle()));
           const credentialsEditor = $("#doctorCredentials");
@@ -1619,7 +1633,9 @@
           renderDiagnosisSelects();
           renderSettingsComments();
           renderSettingsDiagnoses();
+          renderSettingsTests();
           renderClinicName();
+          render();
         }, (error) => {
           console.error("Cloud settings sync failed", error);
         }));
@@ -1646,6 +1662,14 @@
           .map((item) => String(item || "").trim())
           .filter(Boolean))]
           .sort((a, b) => defaultDiagnoses.includes(a) && !defaultDiagnoses.includes(b) ? -1 : !defaultDiagnoses.includes(a) && defaultDiagnoses.includes(b) ? 1 : a.localeCompare(b));
+      }
+      function staffTests() {
+        const stored = Array.isArray(clinicSettings.staffTests) ? clinicSettings.staffTests : parseStoredArray(staffTestsStore);
+        const cleaned = [...new Set(stored
+          .map((item) => String(item || "").trim())
+          .filter(Boolean))]
+          .sort((a, b) => defaultTests.includes(a) && !defaultTests.includes(b) ? -1 : !defaultTests.includes(a) && defaultTests.includes(b) ? 1 : a.localeCompare(b));
+        return cleaned.length ? cleaned : [...defaultTests];
       }
       function normaliseComments(comments = []) {
         return [...new Set((Array.isArray(comments) ? comments : [])
@@ -1720,11 +1744,23 @@
           <span class="settings-comment-pill">${escapeHtml(diagnosis)}${defaultDiagnoses.includes(diagnosis) ? "" : ` <button type="button" data-remove-diagnosis="${escapeHtml(diagnosis)}" aria-label="Remove ${escapeHtml(diagnosis)}">&times;</button>`}</span>
         `).join("") : `<span class="meta">No diagnoses added.</span>`;
       }
+      function renderSettingsTests() {
+        const box = $("#settingsTestsList");
+        if (!box) return;
+        const configuredTests = staffTests();
+        box.innerHTML = configuredTests.length ? configuredTests.map((test) => `
+          <span class="settings-comment-pill">${escapeHtml(test)} <button type="button" data-remove-staff-test="${escapeHtml(test)}" aria-label="Remove ${escapeHtml(test)}">&times;</button></span>
+        `).join("") : `<span class="meta">No tests added.</span>`;
+      }
       async function saveClinicSettingsPatch(patch) {
         clinicSettings = { ...clinicSettings, ...patch };
         if (patch.doctorCredentials !== undefined) writeStore(doctorCredentialsStore, patch.doctorCredentials || "");
         if (patch.patientComments !== undefined) writeStore(patientCommentsStore, JSON.stringify(patientComments()));
         if (patch.diagnoses !== undefined) writeStore(diagnosesStore, JSON.stringify(reusableDiagnoses()));
+        if (patch.staffTests !== undefined) {
+          tests = staffTests();
+          writeStore(staffTestsStore, JSON.stringify(tests));
+        }
         if (patch.clinicName !== undefined) writeStore(clinicNameStore, patch.clinicName || "");
         if (patch.clinicNameStyle !== undefined) writeStore(clinicNameStyleStore, JSON.stringify(clinicNameStyle()));
         await setDoc(userSettingsDoc(), { ...patch, updatedAt: new Date().toISOString() }, { merge: true });
@@ -1732,7 +1768,9 @@
         renderDiagnosisSelects();
         renderSettingsComments();
         renderSettingsDiagnoses();
+        renderSettingsTests();
         renderClinicName();
+        render();
       }
       function patientCommentsHtml(patient) {
         const comments = Array.isArray(patient.comments) ? patient.comments.filter(Boolean) : [];
@@ -5843,6 +5881,20 @@ ${context}`;
           await saveClinicSettingsPatch({ diagnoses });
           $("#settingsStatus").textContent = "Diagnosis removed.";
         }
+        if (button.id === "addStaffTestBtn") {
+          const test = $("#newStaffTest").value.trim();
+          if (!test) { alert("Enter a staff test."); return; }
+          const staffTestsValue = [...new Set([...staffTests(), test])].sort((a, b) => a.localeCompare(b));
+          $("#newStaffTest").value = "";
+          await saveClinicSettingsPatch({ staffTests: staffTestsValue });
+          $("#settingsStatus").textContent = "Staff test saved.";
+        }
+        if (button.dataset.removeStaffTest) {
+          const test = button.dataset.removeStaffTest;
+          const staffTestsValue = staffTests().filter((item) => item !== test);
+          await saveClinicSettingsPatch({ staffTests: staffTestsValue });
+          $("#settingsStatus").textContent = "Staff test removed.";
+        }
         if (button.dataset.copy) copyReport(button.dataset.copy);
         if (button.id === "toggleFollowup") { followupExpanded = !followupExpanded; renderFollowupList(); }
         if (button.id === "toggleWhatsapp") { whatsappExpanded = !whatsappExpanded; renderWhatsappPreview(); }
@@ -6000,6 +6052,7 @@ ${context}`;
       renderDiagnosisSelects();
       renderSettingsComments();
       renderSettingsDiagnoses();
+      renderSettingsTests();
       renderClinicName();
       setMainTab("doctor");
       render();
