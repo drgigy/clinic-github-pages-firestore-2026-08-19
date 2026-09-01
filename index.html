@@ -1240,6 +1240,8 @@
         whatsapp: true,
         accounts: true,
         voice: true,
+        typedNote: true,
+        woyzNote: true,
         printPrescription: true,
         printReply: true,
         printCertificate: true,
@@ -2954,8 +2956,8 @@ ${context}`;
         list.innerHTML = `
           <div class="previous-actions">
             <button class="secondary previous-record ${activeRecordView === "all" ? "active" : ""}" type="button" data-all-records="true">All entries</button>
-            <button class="primary previous-record note-action" type="button" data-new-record="true" title="Add typed note" aria-label="Add typed note">+ Note</button>
-            <button class="primary previous-record note-action" type="button" data-ambient-record="true" title="Add WOYZ voice note" aria-label="Add WOYZ voice note">WOYZ</button>
+            <button class="primary previous-record note-action" type="button" data-new-record="true" data-feature="typedNote" title="Add typed note" aria-label="Add typed note">+ Note</button>
+            <button class="primary previous-record note-action" type="button" data-ambient-record="true" data-feature="woyzNote" title="Add WOYZ voice note" aria-label="Add WOYZ voice note">WOYZ</button>
           </div>
           ${drafts.map((draft) => `
           <div class="record-entry-row">
@@ -5716,8 +5718,8 @@ ${context}`;
           button.closest(".blood-chart")?.remove();
           activeRecordDirty = true;
         }
-        if (button.dataset.newRecord) createNewMedicalEntry();
-        if (button.dataset.ambientRecord) createNewMedicalEntry("ambient");
+        if (button.dataset.newRecord && featureEnabled("typedNote")) createNewMedicalEntry();
+        if (button.dataset.ambientRecord && featureEnabled("woyzNote") && featureEnabled("voice")) createNewMedicalEntry("ambient");
         if (button.dataset.openDraftRecord) openDraftMedicalEntry(button.dataset.openDraftRecord);
         if (button.dataset.openRecord) {
           await openMedicalRecord(activeRecordPatientId, button.dataset.openRecord);
