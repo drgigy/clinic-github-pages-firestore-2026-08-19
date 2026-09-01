@@ -1040,9 +1040,9 @@
           <div class="record-actions">
           <button class="secondary" type="button" id="recordPrintPrescriptionBtn" data-feature="printPrescription">Print Prescription</button>
           <button class="secondary" type="button" id="recordAddOnBtn" data-feature="voice" hidden>Add On</button>
-          <button class="secondary smart-chart-button" type="button" id="recordSummaryBtn" style="background:#dc2626;color:#fff;box-shadow:inset 0 0 0 2px #991b1b,0 1px 4px rgba(153,27,27,.22);">Smart Chart</button>
-          <button class="secondary" type="button" id="recordDiagnosisBtn">Diagnosis</button>
-          <button class="secondary" type="button" id="recordCommentsBtn">Comments</button>
+          <button class="secondary smart-chart-button" type="button" id="recordSummaryBtn" data-feature="smartChart" style="background:#dc2626;color:#fff;box-shadow:inset 0 0 0 2px #991b1b,0 1px 4px rgba(153,27,27,.22);">Smart Chart</button>
+          <button class="secondary" type="button" id="recordDiagnosisBtn" data-feature="diagnosis">Diagnosis</button>
+          <button class="secondary" type="button" id="recordCommentsBtn" data-feature="comments">Comments</button>
           <button class="secondary" type="button" id="recordSaveBtn">Save</button>
           <button class="primary" type="button" id="recordSaveCloseBtn">Save & Close</button>
           <button class="secondary" type="button" id="recordPrintBtn" data-feature="printReply">Print</button>
@@ -1242,7 +1242,10 @@
         voice: true,
         printPrescription: true,
         printReply: true,
-        printCertificate: true
+        printCertificate: true,
+        smartChart: true,
+        diagnosis: true,
+        comments: true
       };
       let appFeatures = { ...defaultAppFeatures };
       let reusedPatientUhid = "";
@@ -1421,6 +1424,7 @@
         return { staff: "staff", finance: "finance", followup: "followup", whatsapp: "whatsapp" }[tab] || "";
       }
       function applyAppFeatures() {
+        window.woyzFeatureEnabled = featureEnabled;
         $$("[data-feature]").forEach((element) => {
           const feature = element.dataset.feature;
           element.dataset.featureHidden = feature && !featureEnabled(feature) ? "true" : "false";
@@ -1442,6 +1446,8 @@
           setMainTab("doctor", false);
         }
       }
+      window.woyzFeatureEnabled = featureEnabled;
+      window.applyWoyzAppFeatures = applyAppFeatures;
       async function registerSignedInUser(user) {
         try {
           await setDoc(userDirectoryDoc(), {
@@ -6134,8 +6140,12 @@ ${context}`;
     button.type = "button";
     button.textContent = label;
     button.className = prescriptionButton.className;
+    var featureName = type === "certificate" ? "printCertificate" : "printReply";
+    button.dataset.feature = featureName;
+    button.dataset.featureHidden = window.woyzFeatureEnabled && !window.woyzFeatureEnabled(featureName) ? "true" : "false";
     button.addEventListener("click", function () { openPrintWindow(type); });
     prescriptionButton.parentNode.insertBefore(button, prescriptionButton.nextSibling);
+    if (window.applyWoyzAppFeatures) window.applyWoyzAppFeatures();
   }
 
   function installButtons() {
