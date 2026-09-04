@@ -329,13 +329,13 @@
       .ambient-pause { background: #f59e0b; }
       .ambient-stop { background: #f04b08; }
       .ambient-note { width: 100%; height: 100%; min-height: 360px; resize: none; border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif; font-size: 16px; line-height: 1.55; color: var(--ink); background: #fff; outline: none; }
-      .record-patient-fields { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-bottom: 10px; padding: 0 0 10px; border-bottom: 1px solid var(--line); background: transparent; font-size: 14px; line-height: 1.35; color: var(--ink); }
-      .record-patient-fields[hidden] { display: none !important; }
-      .record-patient-fields p { margin: 0; }
-      .record-patient-fields strong { font-weight: 800; color: var(--ink); }
-      .record-patient-fields [contenteditable="true"] { display: inline-block; min-width: 42px; max-width: 340px; padding: 0 2px; border-bottom: 1px dotted transparent; outline: none; font-weight: 500; color: var(--ink); vertical-align: baseline; }
-      .record-patient-fields [contenteditable="true"]:focus { border-bottom-color: var(--primary); background: #eefaf4; }
-      .record-patient-fields [contenteditable="true"]:empty::before { content: attr(data-placeholder); color: #8997a8; font-weight: 500; }
+      .record-patient-fields { display: none; }
+      .draft-patient-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 0 0 16px; font-size: 15px; line-height: 1.35; }
+      .draft-patient-line span { white-space: nowrap; }
+      .draft-patient-line strong { font-weight: 800; color: var(--ink); }
+      .draft-patient-line [contenteditable="true"] { display: inline-block; min-width: 36px; max-width: 220px; padding: 0 2px; border-bottom: 1px dotted transparent; outline: none; font-weight: 500; color: var(--ink); vertical-align: baseline; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .draft-patient-line [contenteditable="true"]:focus { border-bottom-color: var(--primary); background: #eefaf4; }
+      .draft-patient-line [contenteditable="true"]:empty::before { content: attr(data-placeholder); color: #8997a8; font-weight: 500; }
       #recordDraftName { min-width: 120px; }
       #recordDraftMobile { min-width: 92px; }
       #recordDraftPatientId { min-width: 92px; }
@@ -1096,7 +1096,6 @@
           <button class="secondary" type="button" id="recordSaveBtn">Save</button>
           <button class="primary" type="button" id="recordSaveCloseBtn">Save & Close</button>
           <button class="secondary record-delete-button" type="button" id="recordDeleteBtn" title="Delete note" aria-label="Delete note" hidden>Delete</button>
-          <button class="secondary" type="button" id="recordCloseBtn">Close</button>
         </div>
       </div>
       <div class="record-body">
@@ -1106,13 +1105,6 @@
         </aside>
         <div class="record-main">
           <div class="record-status" id="recordStatus"></div>
-          <div class="record-patient-fields" id="recordPatientFields" hidden>
-            <p><strong>Patient Name:</strong> <span id="recordDraftName" contenteditable="true" data-placeholder="Patient name"></span></p>
-            <p><strong>Age:</strong> <span id="recordDraftAge" contenteditable="true" data-placeholder="Age"></span> years</p>
-            <p><strong>Sex:</strong> <span id="recordDraftSex" contenteditable="true" data-placeholder="Sex"></span></p>
-            <p><strong>Mobile:</strong> <span id="recordDraftMobile" contenteditable="true" data-placeholder="Mobile"></span></p>
-            <p><strong>UHID:</strong> <span id="recordDraftPatientId" contenteditable="true" data-placeholder="Auto if empty"></span></p>
-          </div>
           <div class="ambient-dock" id="ambientDock" hidden></div>
           <div class="medical-textarea" id="medicalNoteText" contenteditable="true" role="textbox" aria-label="Medical notes"></div>
         </div>
@@ -2374,8 +2366,7 @@
       }
       function setRecordPatientFieldsVisible(visible, patient = activeRecordPatient()) {
         const panel = $("#recordPatientFields");
-        if (!panel) return;
-        panel.hidden = !visible;
+        if (panel) panel.hidden = !visible;
         if (visible) setRecordPatientDraftFields(patient || {});
       }
       function setRecordDirty() {
@@ -3076,7 +3067,12 @@ ${context}`;
       }
       function showAmbientResult(text = "", dirty = true) {
         ambientState = "ready";
-        activeRecordDocs.visit = activeAmbientMode === "summary" ? formattedTreatmentSummaryHtml(text) : plainTextToHtml(text);
+        const patient = activeRecordPatient();
+        activeRecordDocs.visit = activeAmbientMode === "summary"
+          ? formattedTreatmentSummaryHtml(text)
+          : isPendingDoctorPatient(patient) && activeAmbientMode === "visit"
+            ? `<span class="visit-note-title">Visit Note</span>${doctorDraftPatientLineHtml(patient)}${plainTextToHtml(text)}`
+            : plainTextToHtml(text);
         if (draftMedicalRecord && activeRecordId === draftMedicalRecord.id && activeRecordView === "draft") {
           draftMedicalRecord.note = text;
           draftMedicalRecord.noteHtml = activeRecordDocs.visit;
@@ -3341,7 +3337,9 @@ ${context}`;
             updateRecordPatientHeader(patient);
             note = extracted.note || note;
           }
-          activeRecordDocs.visit = plainTextToHtml(note);
+          activeRecordDocs.visit = isPendingDoctorPatient(patient) && processingMode === "visit"
+            ? `<span class="visit-note-title">Visit Note</span>${doctorDraftPatientLineHtml(patient)}${plainTextToHtml(note)}`
+            : plainTextToHtml(note);
           if (draftMedicalRecord) updateDraftContent(draftMedicalRecord, note, processingMode);
           activeRecordDirty = true;
           if (draftMedicalRecord) {
@@ -3452,6 +3450,9 @@ ${context}`;
         activeRecordDocs = { visit: draft.docs?.visit || draft.noteHtml || (draft.note ? plainTextToHtml(draft.note) : "") };
         if (activeAmbientMode === "summary") activeRecordDocs.visit = formattedTreatmentSummaryHtml(activeRecordDocs.visit);
         else if (!["prescription", "certificate", "reply"].includes(activeAmbientMode)) activeRecordDocs.visit = boldVisitNoteHeadingsHtml(activeRecordDocs.visit);
+        if (isPendingDoctorPatient(patient) && !activeRecordDocs.visit.includes("draft-patient-line")) {
+          activeRecordDocs.visit = blankVisitNoteTemplateHtml(patient);
+        }
         updateRecordPatientHeader(patient);
         setRecordPatientFieldsVisible(isPendingDoctorPatient(patient), patient);
         $("#recordVisitDate").textContent = `${dateTimeLabel(draft.createdAt)} - draft`;
@@ -3636,8 +3637,17 @@ ${context}`;
           return isVisitNoteHeadingLine(line) ? `<strong>${escaped}</strong>` : escaped;
         }).join("<br>");
       }
-      function blankVisitNoteTemplateHtml() {
-        return `<span class="visit-note-title">Visit Note</span>${plainTextToHtml(`Presenting Complaint:
+      function doctorDraftPatientLineHtml(patient = {}) {
+        return `<div class="draft-patient-line">
+          <span><strong>Patient Name:</strong> <span id="recordDraftName" contenteditable="true" data-placeholder="Patient name">${escapeHtml(patient.name || "")}</span></span>
+          <span><strong>Age:</strong> <span id="recordDraftAge" contenteditable="true" data-placeholder="Age">${escapeHtml(patient.age || "")}</span> years</span>
+          <span><strong>Sex:</strong> <span id="recordDraftSex" contenteditable="true" data-placeholder="Sex">${escapeHtml(normaliseDraftSex(patient.sex))}</span></span>
+          <span><strong>UHID:</strong> <span id="recordDraftPatientId" contenteditable="true" data-placeholder="Auto if empty">${escapeHtml(patient.patientId || "")}</span></span>
+          <span><strong>Mobile:</strong> <span id="recordDraftMobile" contenteditable="true" data-placeholder="Mobile">${escapeHtml(patient.mobile || "")}</span></span>
+        </div>`;
+      }
+      function blankVisitNoteTemplateHtml(patient = {}) {
+        return `<span class="visit-note-title">Visit Note</span>${doctorDraftPatientLineHtml(patient)}${plainTextToHtml(`Presenting Complaint:
 NIL
 
 History of Present Illness:
@@ -4812,7 +4822,7 @@ NIL`)}`;
         activeRecordType = "visit";
         activeRecordSource = "typed";
         activeAmbientMode = "visit";
-        const templateHtml = blankVisitNoteTemplateHtml();
+        const templateHtml = blankVisitNoteTemplateHtml(patient);
         activeRecordDocs = { visit: templateHtml };
         draftMedicalRecord = createDraftMedicalRecord(patient, "ambient", "visit", createdAt);
         draftMedicalRecord.noteHtml = templateHtml;
