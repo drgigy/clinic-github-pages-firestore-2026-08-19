@@ -3641,13 +3641,53 @@ ${context}`;
           return isVisitNoteHeadingLine(line) ? `<strong>${escaped}</strong>` : escaped;
         }).join("<br>");
       }
+      function blankVisitNoteTemplateHtml() {
+        return plainTextToHtml(`Presenting Complaint:
+NIL
+
+History of Present Illness:
+NIL
+
+Past Medical or Surgical History:
+NIL
+
+Allergies:
+NIL
+
+Family History:
+NIL
+
+Personal History:
+NIL
+
+Examination Findings:
+NIL
+
+Review of Investigations:
+NIL
+
+Current Medications:
+NIL
+
+Diagnosis:
+NIL
+
+Prescription:
+NIL
+
+Advice / Instructions:
+NIL
+
+Review Note:
+NIL`);
+      }
       function htmlToPlainText(value) {
         const container = document.createElement("div");
         container.innerHTML = String(value || "").replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>/gi, "\n");
         return container.innerText || container.textContent || "";
       }
       function isVisitNoteHeadingLine(value) {
-        return /^(chief complaints?|history of present illness|past medical or surgical history|allergies|examination findings?|review of investigations|current medications?|diagnosis|prescription|advice(?:\s*\/\s*instructions)?|review note)\s*:$/i.test(String(value || "").trim());
+        return /^(chief complaints?|presenting complaints?|history of present illness|past medical or surgical history|allergies|family history|personal history|examination findings?|review of investigations|current medications?|diagnosis|prescription|advice(?:\s*\/\s*instructions)?|review note)\s*:$/i.test(String(value || "").trim());
       }
       function boldVisitNoteHeadingsHtml(value) {
         const source = String(value || "");
@@ -4778,8 +4818,12 @@ ${context}`;
         activeRecordType = "visit";
         activeRecordSource = "typed";
         activeAmbientMode = "visit";
-        activeRecordDocs = { visit: "" };
+        const templateHtml = blankVisitNoteTemplateHtml();
+        activeRecordDocs = { visit: templateHtml };
         draftMedicalRecord = createDraftMedicalRecord(patient, "ambient", "visit", createdAt);
+        draftMedicalRecord.noteHtml = templateHtml;
+        draftMedicalRecord.note = htmlToPlainText(templateHtml);
+        draftMedicalRecord.docs = { visit: templateHtml };
         extraDraftMedicalRecords = [];
         resetAmbientState();
         updateRecordPatientHeader(patient);
@@ -4787,8 +4831,8 @@ ${context}`;
         $("#recordVisitDate").textContent = `${dateTimeLabel(createdAt)} - new patient draft`;
         $("#medicalRecordScreen").classList.add("open");
         $("#medicalRecordScreen").setAttribute("aria-hidden", "false");
-        $("#medicalNoteText").setAttribute("contenteditable", "false");
-        $("#medicalNoteText").innerHTML = `<div class="empty">Press WOYZ and dictate patient details with the consultation.</div>`;
+        $("#medicalNoteText").setAttribute("contenteditable", "true");
+        $("#medicalNoteText").innerHTML = templateHtml;
         $("#recordDeleteBtn").hidden = false;
         $("#recordDeleteBtn").title = "Discard draft";
         $("#recordDeleteBtn").setAttribute("aria-label", "Discard draft");
