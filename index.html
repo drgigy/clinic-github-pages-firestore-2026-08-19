@@ -6530,7 +6530,6 @@ NIL`)}`;
           if (activeRecordView === "draft" || pendingDoctorPatient) deleteDraftMedicalEntry();
           else deleteMedicalEntry(activeRecordId);
         }
-        if (button.id === "recordCloseBtn") closeMedicalRecordScreen();
         if (button.id === "saveAuthorizationKeyBtn") {
           const clinicName = cleanCredentialsHtml($("#clinicName").innerHTML);
           const clinicNameStyle = {
