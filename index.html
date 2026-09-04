@@ -245,6 +245,7 @@
       .record-patient h1 { font-size: 20px; margin-bottom: 4px; font-weight: 900; }
       .record-meta { display: flex; flex-wrap: wrap; gap: 8px 14px; color: var(--muted); font-size: 13px; font-weight: 850; }
       .record-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+      .record-delete-button { background: var(--danger); color: var(--danger-ink); }
       .print-menu { position: relative; display: inline-flex; }
       .print-menu-panel { position: absolute; top: calc(100% + 6px); right: 0; z-index: 8; min-width: 190px; display: grid; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius); background: #fff; box-shadow: 0 14px 34px rgba(16, 32, 43, .15); opacity: 0; visibility: hidden; pointer-events: none; transform: translateY(-4px); transition: opacity .15s ease .65s, transform .15s ease .65s, visibility 0s linear .85s; }
       .print-menu:hover .print-menu-panel,
@@ -264,7 +265,7 @@
       .record-main { display: grid; grid-template-rows: auto 1fr; gap: 10px; min-height: 0; height: 100%; }
       .record-status { min-height: 20px; color: var(--muted); font-size: 13px; font-weight: 850; }
       .record-status:empty { display: none; }
-      .ambient-dock { display: none; position: fixed; left: 14px; bottom: 22px; z-index: 45; width: 9cm; height: 6cm; padding: 13px 16px; border: 0; border-radius: 18px; background: #1b1b1d; color: #f7f7fb; box-shadow: 0 20px 46px rgba(16, 24, 43, .28); user-select: none; touch-action: none; cursor: move; }
+      .ambient-dock { display: none; position: fixed; left: 32px; bottom: 22px; z-index: 45; width: 248px; height: 220px; padding: 12px; border: 0; border-radius: 18px; background: #1b1b1d; color: #f7f7fb; box-shadow: 0 20px 46px rgba(16, 24, 43, .28); user-select: none; touch-action: none; cursor: move; }
       .ambient-dock.visible { display: grid; grid-template-rows: auto 1fr; gap: 6px; }
       .ambient-float-head { display: flex; align-items: center; justify-content: flex-start; min-height: 22px; cursor: move; }
       .ambient-recording-label { display: inline-flex; align-items: center; gap: 7px; color: #ff514a; font-size: 13px; font-weight: 900; }
@@ -275,9 +276,9 @@
       .ambient-float-mode .ambient-mode.active { background: #592927; color: #ffb4ad; }
       .ambient-float-mode .ambient-mode:disabled { opacity: .65; cursor: not-allowed; }
       .ambient-countdown { color: #10182b; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 42px; font-weight: 900; letter-spacing: .04em; }
-      .ambient-dock .ambient-countdown { color: #f7f7fb; font-size: 34px; line-height: 1; font-weight: 900; }
-      .ambient-float-extend { width: 52px; height: 52px; min-height: 52px; padding: 0; border-radius: 999px; background: #2f2f32; color: #f7f7fb; font-size: 17px; font-weight: 900; }
-      .ambient-float-actions { display: flex; align-items: center; justify-content: center; gap: 16px; }
+      .ambient-dock .ambient-countdown { color: #f7f7fb; font-size: 30px; line-height: 1; font-weight: 900; }
+      .ambient-float-extend { width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 999px; background: #2f2f32; color: #f7f7fb; font-size: 15px; font-weight: 900; }
+      .ambient-float-actions { display: flex; align-items: center; justify-content: center; gap: 10px; }
       .ambient-level { width: 76%; height: 30px; display: grid; grid-template-columns: repeat(28, 1fr); gap: 3px; align-items: end; padding: 1px 0; }
       .ambient-level span { height: 4px; border-radius: 999px 999px 3px 3px; background: rgba(255, 81, 74, .22); opacity: .65; transition: height .08s linear, background .08s linear, opacity .08s linear; }
       .ambient-level span.active { background: #ff514a; opacity: 1; }
@@ -320,9 +321,9 @@
       }
       .ambient-mic { width: 118px; height: 118px; border-radius: 999px; min-height: 118px; display: inline-grid; place-items: center; font-size: 46px; background: #2563eb; color: #fff; box-shadow: 0 16px 34px rgba(37, 99, 235, .22); }
       .ambient-round { width: 92px; height: 92px; border-radius: 999px; min-height: 92px; display: inline-grid; place-items: center; font-size: 34px; color: #fff; border: 0; }
-      .ambient-dock .ambient-mic { width: 64px; height: 64px; min-height: 64px; font-size: 0; background: #ff514a; box-shadow: 0 12px 26px rgba(255, 81, 74, .24); }
-      .ambient-dock .ambient-mic svg { width: 32px; height: 32px; }
-      .ambient-dock .ambient-round { width: 64px; height: 64px; min-height: 64px; font-size: 25px; }
+      .ambient-dock .ambient-mic { width: 56px; height: 56px; min-height: 56px; font-size: 0; background: #ff514a; box-shadow: 0 12px 26px rgba(255, 81, 74, .24); }
+      .ambient-dock .ambient-mic svg { width: 28px; height: 28px; }
+      .ambient-dock .ambient-round { width: 56px; height: 56px; min-height: 56px; font-size: 22px; }
       .ambient-dock .ambient-pause { background: #f7f7fb; color: #1b1b1d; }
       .ambient-dock .ambient-stop { background: #2f2f32; color: #ff514a; font-size: 20px; }
       .ambient-pause { background: #f59e0b; }
@@ -1096,14 +1097,7 @@
           <button class="secondary" type="button" id="recordCommentsBtn" data-feature="comments">Comments</button>
           <button class="secondary" type="button" id="recordSaveBtn">Save</button>
           <button class="primary" type="button" id="recordSaveCloseBtn">Save & Close</button>
-          <button class="icon-delete" type="button" id="recordDeleteBtn" title="Delete note" aria-label="Delete note" hidden>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M3 6h18" />
-              <path d="M8 6V4h8v2" />
-              <path d="M19 6l-1 14H6L5 6" />
-              <path d="M10 11v5M14 11v5" />
-            </svg>
-          </button>
+          <button class="secondary record-delete-button" type="button" id="recordDeleteBtn" title="Delete note" aria-label="Delete note" hidden>Delete</button>
           <button class="secondary" type="button" id="recordCloseBtn">Close</button>
         </div>
       </div>
