@@ -98,12 +98,12 @@
       }
       .choice.noshow { background: var(--danger); color: var(--danger-ink); }
       .queue-overview { display: grid; grid-template-columns: minmax(190px, auto) minmax(0, 1fr); gap: 10px; align-items: center; margin-bottom: 12px; min-width: 0; }
-      .queue-overview.search-visible { grid-template-columns: auto minmax(260px, .36fr) minmax(0, 1fr); }
+      .queue-overview.search-visible { grid-template-columns: auto minmax(300px, .34fr) minmax(0, 1fr); }
       .queue-overview[hidden] { display: none !important; }
       .queue-overview .doctor-search-panel { margin: 0; min-height: 0; align-content: center; padding: 6px 8px; }
       .queue-overview .doctor-search-panel label { display: none; }
       .queue-overview .stats { margin-bottom: 0; }
-      .queue-overview .doctor-search-row textarea { min-height: 36px; height: 36px; padding: 7px 10px; font-size: 14px; font-weight: 750; }
+      .queue-overview .doctor-search-row textarea { min-height: 36px; height: 36px; padding: 7px 10px; font-size: 15px; font-weight: 850; }
       .queue-overview .doctor-search-row .secondary { min-height: 36px; }
       .queue-add-patient { height: 40px; min-height: 40px; max-height: 40px; align-self: center; padding: 0 16px; white-space: nowrap; }
       .doctor-mobile-add { display: none; }
@@ -111,9 +111,10 @@
       .stats { display: grid; grid-template-columns: repeat(6, minmax(86px, 1fr)); gap: 8px; margin-bottom: 18px; }
       .stats.doctor-stats { grid-template-columns: repeat(5, minmax(86px, 1fr)); }
       .stat, .section { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
-      .stat { padding: 8px 10px; }
-      .stat span, .report-item span { display: block; color: var(--muted); font-size: 11px; margin-bottom: 3px; line-height: 1.15; }
-      .stat strong { font-size: 20px; line-height: 1; }
+      .stat { min-height: 50px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+      .stat span { color: var(--muted); font-size: 13px; font-weight: 850; line-height: 1.15; }
+      .report-item span { display: block; color: var(--muted); font-size: 11px; margin-bottom: 3px; line-height: 1.15; }
+      .stat strong { font-size: 24px; line-height: 1; font-weight: 900; color: var(--ink); }
       .content-grid { display: grid; grid-template-columns: minmax(520px, 1.1fr) minmax(420px, .9fr); gap: 18px; align-items: start; }
       .section { padding: 16px; }
       .section.doctor-after-section { padding-top: 10px; }
@@ -570,7 +571,7 @@
         .nav-date-control { display: flex; flex-wrap: wrap; justify-content: flex-start; align-items: center; }
         .nav-date-control label { width: 180px; flex-basis: 180px; }
         .queue-overview { grid-template-columns: minmax(170px, auto) minmax(0, 1fr); }
-        .queue-overview.search-visible { grid-template-columns: auto minmax(240px, .44fr) minmax(0, 1fr); }
+        .queue-overview.search-visible { grid-template-columns: auto minmax(300px, .44fr) minmax(0, 1fr); }
         .content-grid, .post-consult-block, .preview-body, .accounts-grid, .neuro-controls { grid-template-columns: 1fr; }
         .followup-row { grid-template-columns: 1fr 1fr; }
         .section.wide, .preview-area { grid-column: auto; }
@@ -676,7 +677,7 @@
           <div class="doctor-search-panel" id="doctorSearchPanel" hidden>
             <label for="doctorPatientSearch">Search previous patient</label>
             <div class="doctor-search-row">
-              <textarea id="doctorPatientSearch" name="patient_lookup_text" rows="1" inputmode="search" enterkeyhint="search" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Name, mobile number, or ID"></textarea>
+              <textarea id="doctorPatientSearch" name="patient_lookup_text" rows="1" inputmode="search" enterkeyhint="search" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Search name, mobile, ID"></textarea>
               <button class="secondary" id="doctorSearchActionBtn" type="button">Search</button>
             </div>
             <div class="doctor-search-results" id="doctorPatientSearchResults"></div>
