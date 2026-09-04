@@ -3068,11 +3068,14 @@ ${context}`;
       function showAmbientResult(text = "", dirty = true) {
         ambientState = "ready";
         const patient = activeRecordPatient();
+        const cleanText = String(text || "").trim();
         activeRecordDocs.visit = activeAmbientMode === "summary"
-          ? formattedTreatmentSummaryHtml(text)
+          ? formattedTreatmentSummaryHtml(cleanText)
           : isPendingDoctorPatient(patient) && activeAmbientMode === "visit"
-            ? `<span class="visit-note-title">Visit Note</span>${doctorDraftPatientLineHtml(patient)}${plainTextToHtml(text)}`
-            : plainTextToHtml(text);
+            ? (cleanText
+              ? `<span class="visit-note-title">Visit Note</span>${doctorDraftPatientLineHtml(patient)}${plainTextToHtml(cleanText)}`
+              : blankVisitNoteTemplateHtml(patient))
+            : plainTextToHtml(cleanText);
         if (draftMedicalRecord && activeRecordId === draftMedicalRecord.id && activeRecordView === "draft") {
           draftMedicalRecord.note = text;
           draftMedicalRecord.noteHtml = activeRecordDocs.visit;
@@ -3271,10 +3274,11 @@ ${context}`;
         try {
           const parsed = JSON.parse(jsonText);
           const patient = parsed?.patient && typeof parsed.patient === "object" ? parsed.patient : {};
+          const age = String(patient.age || "").replace(/\s*years?$/i, "").trim();
           return {
             patient: {
               name: String(patient.name || "").trim(),
-              age: String(patient.age || "").trim(),
+              age,
               sex: normaliseDraftSex(patient.sex),
               mobile: String(patient.mobile || "").trim(),
               patientId: String(patient.uhid || patient.patientId || "").trim(),
@@ -3335,10 +3339,12 @@ ${context}`;
             setRecordPatientDraftFields(patient);
             syncPendingDoctorDraft(patient);
             updateRecordPatientHeader(patient);
-            note = extracted.note || note;
+            note = extracted.note || "";
           }
           activeRecordDocs.visit = isPendingDoctorPatient(patient) && processingMode === "visit"
-            ? `<span class="visit-note-title">Visit Note</span>${doctorDraftPatientLineHtml(patient)}${plainTextToHtml(note)}`
+            ? (note.trim()
+              ? `<span class="visit-note-title">Visit Note</span>${doctorDraftPatientLineHtml(patient)}${plainTextToHtml(note)}`
+              : blankVisitNoteTemplateHtml(patient))
             : plainTextToHtml(note);
           if (draftMedicalRecord) updateDraftContent(draftMedicalRecord, note, processingMode);
           activeRecordDirty = true;
@@ -3346,7 +3352,7 @@ ${context}`;
             ambientState = "ready";
             openDraftMedicalEntry(draftMedicalRecord.id);
             showAmbientResult(note);
-            $("#recordStatus").textContent = `${ambientModeLabel(processingMode)} ready. Review and save.`;
+            $("#recordStatus").textContent = isPendingDoctorPatient(patient) ? "" : `${ambientModeLabel(processingMode)} ready. Review and save.`;
           } else {
             ambientState = "ready";
             $("#recordStatus").textContent = "AI note ready in draft.";
