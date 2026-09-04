@@ -312,11 +312,19 @@
       .ambient-pause { background: #f59e0b; }
       .ambient-stop { background: #f04b08; }
       .ambient-note { width: 100%; height: 100%; min-height: 360px; resize: none; border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif; font-size: 16px; line-height: 1.55; color: var(--ink); background: #fff; outline: none; }
-      .record-patient-fields { display: grid; grid-template-columns: minmax(160px, 1.4fr) 90px 120px minmax(130px, 1fr) minmax(130px, 1fr) minmax(160px, 1fr); gap: 8px; margin-bottom: 10px; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius); background: #f7fafb; }
+      .record-patient-fields { display: block; margin-bottom: 14px; padding: 0 0 14px; border-bottom: 1px solid var(--line); background: transparent; font-size: 18px; line-height: 1.45; color: var(--ink); }
       .record-patient-fields[hidden] { display: none !important; }
-      .record-patient-fields label { display: grid; gap: 4px; margin: 0; font-size: 11px; font-weight: 900; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
-      .record-patient-fields input,
-      .record-patient-fields select { min-height: 38px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: #fff; color: var(--ink); font-size: 15px; font-weight: 850; text-transform: none; letter-spacing: 0; }
+      .record-patient-fields h2 { margin: 0 0 10px; font-family: Georgia, "Times New Roman", serif; font-size: 28px; line-height: 1.15; font-weight: 900; }
+      .record-patient-fields p { margin: 0; }
+      .record-patient-fields strong { font-weight: 900; color: var(--ink); }
+      .record-patient-fields [contenteditable="true"] { display: inline-block; min-width: 42px; max-width: 340px; padding: 0 2px; border-bottom: 1px dotted transparent; outline: none; font-weight: 500; color: var(--ink); vertical-align: baseline; }
+      .record-patient-fields [contenteditable="true"]:focus { border-bottom-color: var(--primary); background: #eefaf4; }
+      .record-patient-fields [contenteditable="true"]:empty::before { content: attr(data-placeholder); color: #8997a8; font-weight: 500; }
+      #recordDraftName { min-width: 150px; }
+      #recordDraftMobile { min-width: 110px; }
+      #recordDraftPatientId { min-width: 100px; }
+      #recordDraftComments { min-width: 100px; }
+      #recordDraftVisitType { min-width: 130px; }
       .settings-grid { display: grid; grid-template-columns: minmax(260px, 1fr) auto; gap: 10px; align-items: end; }
       .settings-block { display: block; margin-top: 14px; }
       .settings-toolbar { display: flex; gap: 8px; margin: 8px 0; }
@@ -567,7 +575,6 @@
         .queue-overview,
         .queue-overview.search-visible { grid-template-columns: 1fr; gap: 10px; }
         .queue-overview.search-visible .doctor-mobile-add { display: block; }
-        .record-patient-fields { grid-template-columns: 1fr; }
         .record-top, .record-body { grid-template-columns: 1fr; }
         .record-actions { justify-content: stretch; }
         .followup-row { grid-template-columns: 1fr; }
@@ -1086,25 +1093,14 @@
         <div class="record-main">
           <div class="record-status" id="recordStatus"></div>
           <div class="record-patient-fields" id="recordPatientFields" hidden>
-            <label>Name<input id="recordDraftName" autocomplete="off" placeholder="Patient name" /></label>
-            <label>Age<input id="recordDraftAge" inputmode="numeric" autocomplete="off" placeholder="Age" /></label>
-            <label>Sex
-              <select id="recordDraftSex">
-                <option value="">Not set</option>
-                <option>Male</option>
-                <option>Female</option>
-                <option>Other</option>
-              </select>
-            </label>
-            <label>Mobile<input id="recordDraftMobile" inputmode="tel" autocomplete="off" placeholder="Mobile" /></label>
-            <label>UHID<input id="recordDraftPatientId" inputmode="numeric" autocomplete="off" placeholder="Auto if empty" /></label>
-            <label>Comment<input id="recordDraftComments" autocomplete="off" placeholder="Comment" /></label>
-            <label>Visit type
-              <select id="recordDraftVisitType">
-                <option>First consultation</option>
-                <option>Review</option>
-              </select>
-            </label>
+            <h2>Visit Note</h2>
+            <p><strong>Patient Name:</strong> <span id="recordDraftName" contenteditable="true" data-placeholder="Patient name"></span></p>
+            <p><strong>Age:</strong> <span id="recordDraftAge" contenteditable="true" data-placeholder="Age"></span> years</p>
+            <p><strong>UHID:</strong> <span id="recordDraftPatientId" contenteditable="true" data-placeholder="Auto if empty"></span></p>
+            <p><strong>Sex:</strong> <span id="recordDraftSex" contenteditable="true" data-placeholder="Sex"></span></p>
+            <p><strong>Mobile:</strong> <span id="recordDraftMobile" contenteditable="true" data-placeholder="Mobile"></span></p>
+            <p><strong>Comment:</strong> <span id="recordDraftComments" contenteditable="true" data-placeholder="Comment"></span></p>
+            <p><strong>Visit Type:</strong> <span id="recordDraftVisitType" contenteditable="true" data-placeholder="First consultation">First consultation</span></p>
           </div>
           <div class="ambient-dock" id="ambientDock" hidden></div>
           <div class="medical-textarea" id="medicalNoteText" contenteditable="true" role="textbox" aria-label="Medical notes"></div>
@@ -2313,24 +2309,29 @@
         return "";
       }
       function collectRecordPatientDraftFields() {
+        const textValue = (id) => document.getElementById(id)?.textContent.trim() || "";
         return {
-          name: $("#recordDraftName")?.value.trim() || "",
-          age: $("#recordDraftAge")?.value.trim() || "",
-          sex: $("#recordDraftSex")?.value || "",
-          mobile: $("#recordDraftMobile")?.value.trim() || "",
-          patientId: $("#recordDraftPatientId")?.value.trim() || "",
-          comments: normaliseComments($("#recordDraftComments")?.value || ""),
-          visitType: $("#recordDraftVisitType")?.value || "First consultation"
+          name: textValue("recordDraftName"),
+          age: textValue("recordDraftAge").replace(/\s*years?$/i, "").trim(),
+          sex: normaliseDraftSex(textValue("recordDraftSex")),
+          mobile: textValue("recordDraftMobile"),
+          patientId: textValue("recordDraftPatientId"),
+          comments: normaliseComments(textValue("recordDraftComments")),
+          visitType: /review/i.test(textValue("recordDraftVisitType")) ? "Review" : "First consultation"
         };
       }
       function setRecordPatientDraftFields(patient = {}) {
-        if ($("#recordDraftName")) $("#recordDraftName").value = patient.name || "";
-        if ($("#recordDraftAge")) $("#recordDraftAge").value = patient.age || "";
-        if ($("#recordDraftSex")) $("#recordDraftSex").value = normaliseDraftSex(patient.sex);
-        if ($("#recordDraftMobile")) $("#recordDraftMobile").value = patient.mobile || "";
-        if ($("#recordDraftPatientId")) $("#recordDraftPatientId").value = patient.patientId || "";
-        if ($("#recordDraftComments")) $("#recordDraftComments").value = normaliseComments(patient.comments || []).join(", ");
-        if ($("#recordDraftVisitType")) $("#recordDraftVisitType").value = patient.visitType || "First consultation";
+        const setText = (id, value) => {
+          const element = document.getElementById(id);
+          if (element) element.textContent = value || "";
+        };
+        setText("recordDraftName", patient.name || "");
+        setText("recordDraftAge", patient.age || "");
+        setText("recordDraftSex", normaliseDraftSex(patient.sex));
+        setText("recordDraftMobile", patient.mobile || "");
+        setText("recordDraftPatientId", patient.patientId || "");
+        setText("recordDraftComments", normaliseComments(patient.comments || []).join(", "));
+        setText("recordDraftVisitType", patient.visitType || "First consultation");
       }
       function updatePendingPatientFromDraftFields() {
         if (!pendingDoctorPatient) return null;
