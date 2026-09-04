@@ -2777,7 +2777,7 @@ ${context}`;
         const status = $("#ambientStatus");
         if (status) status.innerHTML = `<span class="ambient-dot ${isRecording ? "recording" : ""}"></span>${message}`;
         const recordStatus = $("#recordStatus");
-        if (recordStatus && message) recordStatus.textContent = message;
+        if (recordStatus && message && !isPendingDoctorPatient(activeRecordPatient())) recordStatus.textContent = message;
       }
       function updateAmbientCountdown() {
         document.querySelectorAll("#ambientCountdown, [data-ambient-dock-countdown]").forEach((timer) => {
@@ -3154,7 +3154,7 @@ ${context}`;
           updateAmbientCountdown();
           setAmbientButtons();
           startAmbientWave(ambientStream);
-          if (activeRecordView !== "all" && !activeAddOn) renderAllMedicalEntries();
+          if (activeRecordView !== "all" && !activeAddOn && !isPendingDoctorPatient(activeRecordPatient())) renderAllMedicalEntries();
         } catch (error) {
           console.error("Ambient recording failed", error);
           stopAmbientTracks({ releaseMic: true });
