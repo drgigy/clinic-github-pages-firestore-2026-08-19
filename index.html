@@ -245,7 +245,20 @@
       .record-patient h1 { font-size: 22px; margin-bottom: 6px; font-weight: 900; }
       .record-meta { display: flex; flex-wrap: wrap; gap: 8px 14px; color: var(--muted); font-size: 13px; font-weight: 850; }
       .record-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+      .print-menu { position: relative; display: inline-flex; }
+      .print-menu-panel { position: absolute; top: calc(100% + 6px); right: 0; z-index: 8; min-width: 190px; display: grid; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius); background: #fff; box-shadow: 0 14px 34px rgba(16, 32, 43, .15); opacity: 0; visibility: hidden; pointer-events: none; transform: translateY(-4px); transition: opacity .15s ease .65s, transform .15s ease .65s, visibility 0s linear .85s; }
+      .print-menu:hover .print-menu-panel,
+      .print-menu:focus-within .print-menu-panel { opacity: 1; visibility: visible; pointer-events: auto; transform: translateY(0); transition-delay: 0s; }
+      .print-menu-panel button { width: 100%; justify-content: flex-start; background: #f0f5f7; color: var(--ink); box-shadow: none; }
       .record-body { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 14px; padding: 14px 18px 18px; min-height: 0; height: calc(100vh - 96px); overflow: hidden; }
+      @media (min-width: 761px) {
+        .record-top { align-items: center; padding: 10px 18px; }
+        .record-actions { flex-wrap: nowrap; align-items: center; }
+        .record-actions > button,
+        .record-actions .print-menu > button { width: auto; white-space: nowrap; }
+        .print-menu { flex: 0 0 auto; }
+        .record-body { height: calc(100vh - 82px); padding-top: 10px; }
+      }
       .record-main { display: grid; grid-template-rows: auto 1fr; gap: 10px; min-height: 0; height: 100%; }
       .record-status { min-height: 20px; color: var(--muted); font-size: 13px; font-weight: 850; }
       .ambient-dock { display: none; position: fixed; left: 14px; bottom: 22px; z-index: 45; width: 9cm; height: 6cm; padding: 13px 16px; border: 0; border-radius: 18px; background: #1b1b1d; color: #f7f7fb; box-shadow: 0 20px 46px rgba(16, 24, 43, .28); user-select: none; touch-action: none; cursor: move; }
@@ -1066,14 +1079,20 @@
           </div>
         </div>
           <div class="record-actions">
-          <button class="secondary" type="button" id="recordPrintPrescriptionBtn" data-feature="printPrescription">Print Prescription</button>
+          <div class="print-menu">
+            <button class="secondary" type="button" id="recordPrintMenuBtn" aria-haspopup="true">Print</button>
+            <div class="print-menu-panel" role="menu" aria-label="Print options">
+              <button class="secondary" type="button" data-record-print="prescription" data-feature="printPrescription" role="menuitem">Prescription</button>
+              <button class="secondary" type="button" data-record-print="reply" data-feature="printReply" role="menuitem">Reply</button>
+              <button class="secondary" type="button" data-record-print="certificate" data-feature="printCertificate" role="menuitem">Certificate</button>
+            </div>
+          </div>
           <button class="secondary" type="button" id="recordAddOnBtn" data-feature="woyzNote" hidden>Add On</button>
           <button class="secondary smart-chart-button" type="button" id="recordSummaryBtn" data-feature="smartChart" style="background:#dc2626;color:#fff;box-shadow:inset 0 0 0 2px #991b1b,0 1px 4px rgba(153,27,27,.22);">Smart Chart</button>
           <button class="secondary" type="button" id="recordDiagnosisBtn" data-feature="diagnosis">Diagnosis</button>
           <button class="secondary" type="button" id="recordCommentsBtn" data-feature="comments">Comments</button>
           <button class="secondary" type="button" id="recordSaveBtn">Save</button>
           <button class="primary" type="button" id="recordSaveCloseBtn">Save & Close</button>
-          <button class="secondary" type="button" id="recordPrintBtn" data-feature="printReply">Print</button>
           <button class="icon-delete" type="button" id="recordDeleteBtn" title="Delete note" aria-label="Delete note" hidden>
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M3 6h18" />
@@ -6414,8 +6433,9 @@ ${context}`;
         if (button.id === "savePdfAccountsBtn" || button.id === "printInlineAccountsBtn") { document.body.classList.add("print-accounts"); window.print(); }
         if (button.id === "recordSaveBtn") await saveActiveMedicalRecord();
         if (button.id === "recordSaveCloseBtn") { await saveActiveMedicalRecord(); closeMedicalRecordScreen(); }
-        if (button.id === "recordPrintBtn") printActiveMedicalRecord();
-        if (button.id === "recordPrintPrescriptionBtn") printPrescriptionFromVisitNote();
+        if (button.dataset.recordPrint === "prescription") printPrescriptionFromVisitNote();
+        if (button.dataset.recordPrint === "reply") window.printReply ? window.printReply() : printActiveMedicalRecord();
+        if (button.dataset.recordPrint === "certificate") window.printCertificate ? window.printCertificate() : printActiveMedicalRecord();
         if (button.id === "recordAddOnBtn") startRecordAddOn();
         if (button.id === "recordSummaryBtn") showSmartChart();
         if (button.id === "recordDiagnosisBtn") openRecordDiagnosisModal();
