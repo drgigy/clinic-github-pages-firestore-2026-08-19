@@ -265,7 +265,7 @@
       .record-main { display: grid; grid-template-rows: auto 1fr; gap: 10px; min-height: 0; height: 100%; }
       .record-status { min-height: 20px; color: var(--muted); font-size: 13px; font-weight: 850; }
       .record-status:empty { display: none; }
-      .ambient-dock { display: none; position: fixed; left: 32px; bottom: 22px; z-index: 45; width: 248px; height: 220px; padding: 12px; border: 0; border-radius: 18px; background: #1b1b1d; color: #f7f7fb; box-shadow: 0 20px 46px rgba(16, 24, 43, .28); user-select: none; touch-action: none; cursor: move; }
+      .ambient-dock { display: none; position: fixed; left: 18px; bottom: 22px; z-index: 45; width: 248px; max-width: calc(280px - 32px); height: 220px; padding: 12px; border: 0; border-radius: 18px; background: #1b1b1d; color: #f7f7fb; box-shadow: 0 20px 46px rgba(16, 24, 43, .28); user-select: none; touch-action: none; cursor: move; }
       .ambient-dock.visible { display: grid; grid-template-rows: auto 1fr; gap: 6px; }
       .ambient-float-head { display: flex; align-items: center; justify-content: flex-start; min-height: 22px; cursor: move; }
       .ambient-recording-label { display: inline-flex; align-items: center; gap: 7px; color: #ff514a; font-size: 13px; font-weight: 900; }
@@ -2809,14 +2809,32 @@ ${context}`;
           top: Math.min(Math.max(margin, position.top), Math.max(margin, window.innerHeight - height - margin))
         };
       }
+      function defaultAmbientFloatPosition() {
+        const dock = $("#ambientDock");
+        const dockRect = dock?.getBoundingClientRect();
+        const sidebarRect = document.querySelector(".previous-panel")?.getBoundingClientRect();
+        const height = dockRect?.height || 220;
+        if (window.innerWidth <= 760 || !sidebarRect) {
+          const width = Math.max(220, window.innerWidth - 32);
+          if (dock) dock.style.width = `${width}px`;
+          return { left: 16, top: Math.max(10, window.innerHeight - height - 16) };
+        }
+        const width = Math.max(220, Math.min(248, sidebarRect.width - 32));
+        if (dock) dock.style.width = `${width}px`;
+        return {
+          left: sidebarRect.left + 12,
+          top: Math.max(10, window.innerHeight - height - 22)
+        };
+      }
       function applyAmbientFloatPosition() {
         const dock = $("#ambientDock");
         if (!dock) return;
         if (!ambientFloatPosition) {
-          dock.style.left = "";
-          dock.style.top = "";
+          const position = clampAmbientFloatPosition(defaultAmbientFloatPosition());
+          dock.style.left = `${position.left}px`;
+          dock.style.top = `${position.top}px`;
           dock.style.right = "";
-          dock.style.bottom = "22px";
+          dock.style.bottom = "auto";
           return;
         }
         const position = clampAmbientFloatPosition(ambientFloatPosition);
