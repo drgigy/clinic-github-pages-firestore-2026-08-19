@@ -107,6 +107,7 @@
       .queue-overview .doctor-search-row textarea { min-height: 36px; height: 36px; padding: 7px 10px; font-size: 14px; font-weight: 750; }
       .queue-overview .doctor-search-row .secondary { min-height: 36px; }
       .queue-add-patient { min-height: 100%; padding: 0 18px; white-space: nowrap; }
+      .doctor-mobile-add { display: none; }
       .queue-overview.search-visible .queue-add-patient { display: none; }
       .stats { display: grid; grid-template-columns: repeat(6, minmax(86px, 1fr)); gap: 8px; margin-bottom: 18px; }
       .stats.doctor-stats { grid-template-columns: repeat(5, minmax(86px, 1fr)); }
@@ -560,6 +561,7 @@
         .stats, .two, .form-row, .date-control, .nav-date-control, .report-grid { grid-template-columns: 1fr; }
         .queue-overview,
         .queue-overview.search-visible { grid-template-columns: 1fr; gap: 10px; }
+        .queue-overview.search-visible .doctor-mobile-add { display: block; }
         .record-top, .record-body { grid-template-columns: 1fr; }
         .record-actions { justify-content: stretch; }
         .followup-row { grid-template-columns: 1fr; }
@@ -643,6 +645,7 @@
         <p class="date" id="todayLabel" hidden></p>
 
         <div class="queue-overview" id="queueOverview">
+          <button class="primary queue-add-patient doctor-mobile-add" id="openDoctorMobileAddPatientBtn" type="button" hidden>Add Patient</button>
           <button class="primary queue-add-patient" id="openAddPatientBtn" type="button" data-feature="staff">Add Patient</button>
           <div class="doctor-search-panel" id="doctorSearchPanel" hidden>
             <label for="doctorPatientSearch">Search previous patient</label>
@@ -4561,6 +4564,8 @@ ${context}`;
         if (topAddPatient) topAddPatient.hidden = tab !== "staff";
         const doctorTopAddPatient = $("#openDoctorAddPatientBtn");
         if (doctorTopAddPatient) doctorTopAddPatient.hidden = tab !== "doctor";
+        const doctorMobileAddPatient = $("#openDoctorMobileAddPatientBtn");
+        if (doctorMobileAddPatient) doctorMobileAddPatient.hidden = tab !== "doctor";
         applyAppFeatures();
         if (refresh) {
           renderAfterList();
@@ -5026,8 +5031,8 @@ ${context}`;
                 <div class="doctor-consult-identity">
                   <div class="consult-title"><b>${doctorPatientLine(p)}</b></div>
                   <div class="doctor-identity-tags">
-                    ${patientVisibleCommentsHtml(p)}
                     ${diagnosis ? `<span class="doctor-detail-pill diagnosis-pill">${escapeHtml(diagnosis)}</span>` : ""}
+                    ${patientVisibleCommentsHtml(p)}
                   </div>
                 </div>
                 <div class="doctor-test-centre">
@@ -5999,7 +6004,7 @@ ${context}`;
           }
           return;
         }
-        if (button.id === "openAddPatientBtn" || button.id === "openAddPatientNavBtn" || button.id === "openDoctorAddPatientBtn") openAddPatientModal();
+        if (button.id === "openAddPatientBtn" || button.id === "openAddPatientNavBtn" || button.id === "openDoctorAddPatientBtn" || button.id === "openDoctorMobileAddPatientBtn") openAddPatientModal();
         if (button.id === "closeAddPatientBtn") closeAddPatientModal();
         if (button.id === "closeEditPatientBtn") closeEditPatientModal();
         if (button.id === "deleteEditPatientBtn") {
