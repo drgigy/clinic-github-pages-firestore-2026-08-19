@@ -676,7 +676,7 @@
           <div class="doctor-search-panel" id="doctorSearchPanel" hidden>
             <label for="doctorPatientSearch">Search previous patient</label>
             <div class="doctor-search-row">
-              <textarea id="doctorPatientSearch" name="patient_lookup_text" rows="1" inputmode="search" enterkeyhint="search" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Name, mobile number, or UHID"></textarea>
+              <textarea id="doctorPatientSearch" name="patient_lookup_text" rows="1" inputmode="search" enterkeyhint="search" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Name, mobile number, or ID"></textarea>
               <button class="secondary" id="doctorSearchActionBtn" type="button">Search</button>
             </div>
             <div class="doctor-search-results" id="doctorPatientSearchResults"></div>
@@ -3646,7 +3646,7 @@ ${context}`;
           <span><strong>Patient Name:</strong> <span id="recordDraftName" contenteditable="true" data-placeholder="Patient name">${escapeHtml(patient.name || "")}</span></span>
           <span><strong>Age:</strong> <span id="recordDraftAge" contenteditable="true" data-placeholder="Age">${escapeHtml(patient.age || "")}</span> years</span>
           <span><strong>Sex:</strong> <span id="recordDraftSex" contenteditable="true" data-placeholder="Sex">${escapeHtml(normaliseDraftSex(patient.sex))}</span></span>
-          <span><strong>UHID:</strong> <span id="recordDraftPatientId" contenteditable="true" data-placeholder="Auto if empty">${escapeHtml(patient.patientId || "")}</span></span>
+          <span><strong>ID:</strong> <span id="recordDraftPatientId" contenteditable="true" data-placeholder="Auto if empty">${escapeHtml(patient.patientId || "")}</span></span>
           <span><strong>Mobile:</strong> <span id="recordDraftMobile" contenteditable="true" data-placeholder="Mobile">${escapeHtml(patient.mobile || "")}</span></span>
         </div>`;
       }
