@@ -312,6 +312,11 @@
       .ambient-pause { background: #f59e0b; }
       .ambient-stop { background: #f04b08; }
       .ambient-note { width: 100%; height: 100%; min-height: 360px; resize: none; border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif; font-size: 16px; line-height: 1.55; color: var(--ink); background: #fff; outline: none; }
+      .record-patient-fields { display: grid; grid-template-columns: minmax(160px, 1.4fr) 90px 120px minmax(130px, 1fr) minmax(130px, 1fr) minmax(160px, 1fr); gap: 8px; margin-bottom: 10px; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius); background: #f7fafb; }
+      .record-patient-fields[hidden] { display: none !important; }
+      .record-patient-fields label { display: grid; gap: 4px; margin: 0; font-size: 11px; font-weight: 900; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+      .record-patient-fields input,
+      .record-patient-fields select { min-height: 38px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: #fff; color: var(--ink); font-size: 15px; font-weight: 850; text-transform: none; letter-spacing: 0; }
       .settings-grid { display: grid; grid-template-columns: minmax(260px, 1fr) auto; gap: 10px; align-items: end; }
       .settings-block { display: block; margin-top: 14px; }
       .settings-toolbar { display: flex; gap: 8px; margin: 8px 0; }
@@ -562,6 +567,7 @@
         .queue-overview,
         .queue-overview.search-visible { grid-template-columns: 1fr; gap: 10px; }
         .queue-overview.search-visible .doctor-mobile-add { display: block; }
+        .record-patient-fields { grid-template-columns: 1fr; }
         .record-top, .record-body { grid-template-columns: 1fr; }
         .record-actions { justify-content: stretch; }
         .followup-row { grid-template-columns: 1fr; }
@@ -1079,6 +1085,27 @@
         </aside>
         <div class="record-main">
           <div class="record-status" id="recordStatus"></div>
+          <div class="record-patient-fields" id="recordPatientFields" hidden>
+            <label>Name<input id="recordDraftName" autocomplete="off" placeholder="Patient name" /></label>
+            <label>Age<input id="recordDraftAge" inputmode="numeric" autocomplete="off" placeholder="Age" /></label>
+            <label>Sex
+              <select id="recordDraftSex">
+                <option value="">Not set</option>
+                <option>Male</option>
+                <option>Female</option>
+                <option>Other</option>
+              </select>
+            </label>
+            <label>Mobile<input id="recordDraftMobile" inputmode="tel" autocomplete="off" placeholder="Mobile" /></label>
+            <label>UHID<input id="recordDraftPatientId" inputmode="numeric" autocomplete="off" placeholder="Auto if empty" /></label>
+            <label>Comment<input id="recordDraftComments" autocomplete="off" placeholder="Comment" /></label>
+            <label>Visit type
+              <select id="recordDraftVisitType">
+                <option>First consultation</option>
+                <option>Review</option>
+              </select>
+            </label>
+          </div>
           <div class="ambient-dock" id="ambientDock" hidden></div>
           <div class="medical-textarea" id="medicalNoteText" contenteditable="true" role="textbox" aria-label="Medical notes"></div>
         </div>
@@ -1264,6 +1291,7 @@
       let activeRecordSource = "typed";
       let draftMedicalRecord = null;
       let extraDraftMedicalRecords = [];
+      let pendingDoctorPatient = null;
       let ambientRecorder = null;
       let ambientStream = null;
       let ambientAudioContext = null;
@@ -1801,7 +1829,7 @@
         return hasCloudSetting ? cleaned : cleaned.length ? cleaned : [...defaultTests];
       }
       function normaliseComments(comments = []) {
-        return [...new Set((Array.isArray(comments) ? comments : [])
+        return [...new Set((Array.isArray(comments) ? comments : [comments])
           .flatMap((item) => String(item || "").split(","))
           .map((item) => item.trim())
           .filter(Boolean))];
@@ -2046,12 +2074,18 @@
         $("#accountsReportToMonth").hidden = range !== "period";
         $("#accountsReportYear").hidden = range !== "year";
       }
-      function patientDisplayId(patient) { return patient.patientId || nextPatientSequenceId(patient.date || selectedDate); }
+      function isPendingDoctorPatient(patient) {
+        return Boolean(patient?.doctorDraftPatient && pendingDoctorPatient && patient.id === pendingDoctorPatient.id);
+      }
+      function patientDisplayId(patient) {
+        if (isPendingDoctorPatient(patient) && !patient.patientId) return "";
+        return patient.patientId || nextPatientSequenceId(patient.date || selectedDate);
+      }
       function patientLine(patient) { return `${patient.name}, ${patient.age}/${patient.sex[0]} · ID: ${patientDisplayId(patient)}`; }
       function afterPatientLine(patient) { return `${patientLine(patient)} · Mobile: ${patient.mobile || "-"}`; }
       function doctorPatientLine(patient) { return `${patient.name}, ${patient.age}/${(patient.sex || "").charAt(0) || "-"}`; }
       function findPatientForRecord(patientId) {
-        return patients.find((patient) => patient.id === patientId);
+        return patients.find((patient) => patient.id === patientId) || (pendingDoctorPatient?.id === patientId ? pendingDoctorPatient : null);
       }
       function doctorAbbreviation(value) {
         return {
@@ -2271,6 +2305,67 @@
           currentMedications: patient.currentMedications || ""
         };
       }
+      function normaliseDraftSex(value) {
+        const text = String(value || "").trim().toLowerCase();
+        if (/^m(ale)?$/.test(text)) return "Male";
+        if (/^f(emale)?$/.test(text)) return "Female";
+        if (text) return "Other";
+        return "";
+      }
+      function collectRecordPatientDraftFields() {
+        return {
+          name: $("#recordDraftName")?.value.trim() || "",
+          age: $("#recordDraftAge")?.value.trim() || "",
+          sex: $("#recordDraftSex")?.value || "",
+          mobile: $("#recordDraftMobile")?.value.trim() || "",
+          patientId: $("#recordDraftPatientId")?.value.trim() || "",
+          comments: normaliseComments($("#recordDraftComments")?.value || ""),
+          visitType: $("#recordDraftVisitType")?.value || "First consultation"
+        };
+      }
+      function setRecordPatientDraftFields(patient = {}) {
+        if ($("#recordDraftName")) $("#recordDraftName").value = patient.name || "";
+        if ($("#recordDraftAge")) $("#recordDraftAge").value = patient.age || "";
+        if ($("#recordDraftSex")) $("#recordDraftSex").value = normaliseDraftSex(patient.sex);
+        if ($("#recordDraftMobile")) $("#recordDraftMobile").value = patient.mobile || "";
+        if ($("#recordDraftPatientId")) $("#recordDraftPatientId").value = patient.patientId || "";
+        if ($("#recordDraftComments")) $("#recordDraftComments").value = normaliseComments(patient.comments || []).join(", ");
+        if ($("#recordDraftVisitType")) $("#recordDraftVisitType").value = patient.visitType || "First consultation";
+      }
+      function updatePendingPatientFromDraftFields() {
+        if (!pendingDoctorPatient) return null;
+        const fields = collectRecordPatientDraftFields();
+        Object.assign(pendingDoctorPatient, fields, {
+          diagnosis: pendingDoctorPatient.diagnosis || "Others",
+          mode: pendingDoctorPatient.mode || "In clinic"
+        });
+        syncPendingDoctorDraft(pendingDoctorPatient);
+        return pendingDoctorPatient;
+      }
+      function syncPendingDoctorDraft(patient = pendingDoctorPatient) {
+        if (!patient || draftMedicalRecord?.patientAppointmentId !== patient.id) return;
+        Object.assign(draftMedicalRecord, {
+          patientId: patient.patientId || "",
+          patientKey: recordPatientKey(patient),
+          sharedPatientIdentity: sharedPatientIdentity(patient),
+          name: patient.name || "",
+          mobile: patient.mobile || "",
+          date: patient.date || selectedDate
+        });
+      }
+      function updateRecordPatientHeader(patient = activeRecordPatient()) {
+        if (!patient) return;
+        $("#recordPatientName").textContent = patient.name || (isPendingDoctorPatient(patient) ? "New patient" : "");
+        const displayId = patientDisplayId(patient);
+        $("#recordPatientId").textContent = displayId ? `ID: ${displayId}` : "";
+        $("#recordPatientMobile").textContent = patient.mobile ? `Mobile: ${patient.mobile}` : "";
+      }
+      function setRecordPatientFieldsVisible(visible, patient = activeRecordPatient()) {
+        const panel = $("#recordPatientFields");
+        if (!panel) return;
+        panel.hidden = !visible;
+        if (visible) setRecordPatientDraftFields(patient || {});
+      }
       function setRecordDirty() {
         activeRecordDirty = true;
         $("#recordStatus").textContent = "Unsaved changes";
@@ -2377,6 +2472,51 @@ Name: ${patient?.name || ""}
 ID: ${patient ? patientDisplayId(patient) : ""}
 Mobile: ${patient?.mobile || ""}
 Diagnosis/main symptom: ${patient?.diagnosis || ""}`;
+        if (isPendingDoctorPatient(patient) && mode === "visit") {
+          return `You are a clinical note assistant helping a doctor create a concise OPD medical note from ambient audio for a new unregistered patient.
+
+The doctor may dictate patient registration details and the consultation together.
+Extract patient details only if dictated. Do not guess.
+Return JSON only. Do not use markdown fences. Do not add any text before or after JSON.
+
+Use this exact JSON shape:
+{
+  "patient": {
+    "name": "",
+    "age": "",
+    "sex": "",
+    "mobile": "",
+    "uhid": "",
+    "comments": [],
+    "visitType": "First consultation",
+    "diagnosis": ""
+  },
+  "note": ""
+}
+
+Allowed sex values are "Male", "Female", "Other", or "".
+Use "First consultation" as visitType unless the doctor clearly says review.
+Patient comments can include dictated labels such as relative, VIP, doctor referral, free, or similar administrative comments.
+
+For note, create the same visit note text you would normally create.
+Use these headings, in this order, but OMIT a heading completely if no information was dictated for that section:
+
+Chief Complaints:
+History of Present Illness:
+Past Medical or Surgical History:
+Allergies:
+Examination Findings:
+Review of Investigations:
+Current Medications:
+Diagnosis:
+Prescription:
+Advice / Instructions:
+
+Do not include patient name, age, sex, mobile number, UHID, or administrative comments inside the note unless clinically relevant.
+Never add clinical information that was not spoken.
+
+${context}`;
+        }
         if (mode === "addon") {
           return `You are a clinical review add-on assistant helping a doctor create a separate review draft note after an OPD consultation.
 
@@ -3097,6 +3237,29 @@ ${context}`;
         const hasReviewNote = lines.some((line) => /^review note\s*:?\s*$/i.test(line));
         return hasReviewNote ? lines.join("\n") : ["Review Note:", ...lines].join("\n");
       }
+      function parseUnregisteredVisitOutput(text) {
+        const raw = String(text || "").trim();
+        const jsonText = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+        try {
+          const parsed = JSON.parse(jsonText);
+          const patient = parsed?.patient && typeof parsed.patient === "object" ? parsed.patient : {};
+          return {
+            patient: {
+              name: String(patient.name || "").trim(),
+              age: String(patient.age || "").trim(),
+              sex: normaliseDraftSex(patient.sex),
+              mobile: String(patient.mobile || "").trim(),
+              patientId: String(patient.uhid || patient.patientId || "").trim(),
+              comments: normaliseComments(patient.comments || []),
+              visitType: /review/i.test(String(patient.visitType || "")) ? "Review" : "First consultation",
+              diagnosis: String(patient.diagnosis || "").trim()
+            },
+            note: String(parsed?.note || "").trim()
+          };
+        } catch {
+          return { patient: {}, note: raw };
+        }
+      }
       async function processAmbientAudio() {
         if (adminNoteSettings.speechEnabled === false) {
           setAmbientStatus("Note generation is currently disabled.");
@@ -3117,7 +3280,7 @@ ${context}`;
           const patient = activeRecordPatient();
           const processingMode = activeAmbientMode;
           const audioBase64 = await blobToBase64(ambientAudioBlob);
-          const note = await requestAmbientAuthorizationNote(apiKey, patient, processingMode, audioBase64, ambientAudioBlob.type);
+          let note = await requestAmbientAuthorizationNote(apiKey, patient, processingMode, audioBase64, ambientAudioBlob.type);
           if (activeAddOn) {
             const reviewText = formatAddOnReviewText(note);
             const reviewDraft = draftRecordById(activeAddOn.draftId) || draftMedicalRecord;
@@ -3133,6 +3296,18 @@ ${context}`;
             }
             $("#recordStatus").textContent = "Add On draft ready. Review and save.";
             return;
+          }
+          if (isPendingDoctorPatient(patient) && processingMode === "visit") {
+            const extracted = parseUnregisteredVisitOutput(note);
+            Object.assign(patient, extracted.patient);
+            if (extracted.patient.diagnosis) {
+              patient.customDiagnosis = reusableDiagnoses().includes(extracted.patient.diagnosis) ? "" : extracted.patient.diagnosis;
+              patient.diagnosis = reusableDiagnoses().includes(extracted.patient.diagnosis) ? extracted.patient.diagnosis : "Others";
+            }
+            setRecordPatientDraftFields(patient);
+            syncPendingDoctorDraft(patient);
+            updateRecordPatientHeader(patient);
+            note = extracted.note || note;
           }
           activeRecordDocs.visit = plainTextToHtml(note);
           if (draftMedicalRecord) updateDraftContent(draftMedicalRecord, note, processingMode);
@@ -3245,9 +3420,8 @@ ${context}`;
         activeRecordDocs = { visit: draft.docs?.visit || draft.noteHtml || (draft.note ? plainTextToHtml(draft.note) : "") };
         if (activeAmbientMode === "summary") activeRecordDocs.visit = formattedTreatmentSummaryHtml(activeRecordDocs.visit);
         else if (!["prescription", "certificate", "reply"].includes(activeAmbientMode)) activeRecordDocs.visit = boldVisitNoteHeadingsHtml(activeRecordDocs.visit);
-        $("#recordPatientName").textContent = draft.name || patient.name;
-        $("#recordPatientId").textContent = `ID: ${draft.patientId || patientDisplayId(patient)}`;
-        $("#recordPatientMobile").textContent = `Mobile: ${draft.mobile || patient.mobile || "-"}`;
+        updateRecordPatientHeader(patient);
+        setRecordPatientFieldsVisible(isPendingDoctorPatient(patient), patient);
         $("#recordVisitDate").textContent = `${dateTimeLabel(draft.createdAt)} - draft`;
         $("#recordDeleteBtn").hidden = false;
         $("#recordDeleteBtn").title = "Discard draft";
@@ -3327,10 +3501,14 @@ ${context}`;
       }
       function deleteDraftMedicalEntry() {
         const patient = activeRecordPatient();
-        const draft = draftRecordById(activeRecordId);
-        if (!draft || activeRecordView !== "draft") return;
+        const draft = draftRecordById(activeRecordId) || patientDraftRecords(patient)[0];
+        if (!draft || (activeRecordView !== "draft" && !isPendingDoctorPatient(patient))) return;
         if (!confirm("Discard this unsaved draft note?")) return;
         removeDraftRecordById(draft.id);
+        if (isPendingDoctorPatient(patient)) {
+          closeMedicalRecordScreen();
+          return;
+        }
         activeRecordDirty = false;
         renderPreviousRecords();
         if (patientMedicalRecords(patient).length) renderAllMedicalEntries();
@@ -4527,6 +4705,61 @@ ${context}`;
         $("#addPatientModal").classList.remove("open");
         $("#addPatientModal").setAttribute("aria-hidden", "true");
       }
+      function openDoctorBlankMedicalRecord() {
+        clearActiveAddOn(true);
+        captureActiveDraft();
+        const createdAt = new Date().toISOString();
+        const patient = {
+          id: `doctor_draft_${makeId().slice(0, 10)}`,
+          patientId: "",
+          sharedPatientIdentity: "",
+          date: selectedDate,
+          name: "",
+          age: "",
+          sex: "",
+          mobile: "",
+          comments: [],
+          customDiagnosis: "",
+          visitType: "First consultation",
+          mode: "In clinic",
+          diagnosis: "Others",
+          attendance: "",
+          callbackStatus: "",
+          tests: [],
+          consultAmount: "",
+          consultPayMode: "",
+          testAmount: "",
+          testPayMode: "",
+          doctorDraftPatient: true
+        };
+        pendingDoctorPatient = patient;
+        activeRecordPatientId = patient.id;
+        activeRecordView = "all";
+        activeRecordId = "";
+        activeRecordDate = selectedDate;
+        activeRecordCreatedAt = createdAt;
+        activeRecordType = "visit";
+        activeRecordSource = "typed";
+        activeAmbientMode = "visit";
+        activeRecordDocs = { visit: "" };
+        draftMedicalRecord = createDraftMedicalRecord(patient, "ambient", "visit", createdAt);
+        extraDraftMedicalRecords = [];
+        resetAmbientState();
+        updateRecordPatientHeader(patient);
+        setRecordPatientFieldsVisible(true, patient);
+        $("#recordVisitDate").textContent = `${dateTimeLabel(createdAt)} - new patient draft`;
+        $("#medicalRecordScreen").classList.add("open");
+        $("#medicalRecordScreen").setAttribute("aria-hidden", "false");
+        $("#medicalNoteText").setAttribute("contenteditable", "false");
+        $("#medicalNoteText").innerHTML = `<div class="empty">Press WOYZ and dictate patient details with the consultation.</div>`;
+        $("#recordDeleteBtn").hidden = false;
+        $("#recordDeleteBtn").title = "Discard draft";
+        $("#recordDeleteBtn").setAttribute("aria-label", "Discard draft");
+        $("#recordStatus").textContent = "New patient draft. Dictate patient details and consultation, then review before saving.";
+        activeRecordDirty = true;
+        renderPreviousRecords();
+        setAmbientButtons();
+      }
       function toggleHomeMenu(forceOpen = null) {
         const menu = $("#homeMenu");
         const open = forceOpen === null ? !menu.classList.contains("open") : forceOpen;
@@ -4659,6 +4892,7 @@ ${context}`;
         activeRecordDocs = {};
         activeRecordDirty = false;
         $("#medicalNoteText").setAttribute("contenteditable", "false");
+        setRecordPatientFieldsVisible(isPendingDoctorPatient(patient), patient);
         $("#recordDeleteBtn").hidden = true;
         $("#recordDeleteBtn").title = "Delete note";
         $("#recordDeleteBtn").setAttribute("aria-label", "Delete note");
@@ -4713,6 +4947,15 @@ ${context}`;
       async function saveActiveMedicalRecord() {
         const patient = activeRecordPatient();
         if (!patient) return;
+        const savingPendingDoctorPatient = isPendingDoctorPatient(patient);
+        if (savingPendingDoctorPatient) {
+          updatePendingPatientFromDraftFields();
+          if (!patient.name.trim()) {
+            alert("Please enter or dictate the patient name before saving.");
+            $("#recordDraftName")?.focus();
+            return;
+          }
+        }
         const fallbackDraft = patientDraftRecords(patient)[0];
         if (!activeRecordId && fallbackDraft) {
           activeRecordView = "draft";
@@ -4735,6 +4978,30 @@ ${context}`;
           allergy: details.allergy,
           currentMedications: details.currentMedications
         });
+        if (savingPendingDoctorPatient) {
+          patient.id = makeId();
+          patient.patientId = patient.patientId || nextPatientSequenceId(selectedDate);
+          patient.sharedPatientIdentity = sharedPatientIdentity(patient);
+          patient.date = selectedDate;
+          patient.visitType = patient.visitType || "First consultation";
+          patient.mode = patient.mode || "In clinic";
+          patient.diagnosis = patient.diagnosis || "Others";
+          delete patient.doctorDraftPatient;
+          activeRecordPatientId = patient.id;
+          if (draftMedicalRecord?.patientKey === fallbackDraft?.patientKey) {
+            draftMedicalRecord.patientAppointmentId = patient.id;
+            draftMedicalRecord.patientId = patient.patientId;
+            draftMedicalRecord.patientKey = recordPatientKey(patient);
+            draftMedicalRecord.sharedPatientIdentity = patient.sharedPatientIdentity;
+            draftMedicalRecord.name = patient.name;
+            draftMedicalRecord.mobile = patient.mobile || "";
+            draftMedicalRecord.date = patient.date;
+          }
+          patients.push(patient);
+          pendingDoctorPatient = null;
+          setRecordPatientFieldsVisible(false);
+          updateRecordPatientHeader(patient);
+        }
         const savingDraftRecord = draftRecordById(activeRecordId);
         const savingDraft = Boolean(savingDraftRecord && activeRecordView === "draft");
         const recordId = savingDraft ? `${patient.id}_${localDateKey()}_${makeId().slice(0, 8)}` : activeRecordId;
@@ -4795,9 +5062,8 @@ ${context}`;
         activeRecordPatientId = patient.id;
         const patientRecords = patientMedicalRecords(patient);
         if (!recordId) {
-          $("#recordPatientName").textContent = patient.name;
-          $("#recordPatientId").textContent = `ID: ${patientDisplayId(patient)}`;
-          $("#recordPatientMobile").textContent = `Mobile: ${patient.mobile || "-"}`;
+          updateRecordPatientHeader(patient);
+          setRecordPatientFieldsVisible(false);
           $("#medicalRecordScreen").classList.add("open");
           $("#medicalRecordScreen").setAttribute("aria-hidden", "false");
           if (patientRecords.length) renderAllMedicalEntries();
@@ -4813,9 +5079,8 @@ ${context}`;
         const keepAmbientDraftRunning = draftMedicalRecord?.source === "ambient" && ["recording", "paused", "stopped", "processing"].includes(ambientState);
         activeRecordSource = keepAmbientDraftRunning ? "typed" : (record?.source || "typed");
         if (!keepAmbientDraftRunning) activeAmbientMode = record?.recordKind || "visit";
-        $("#recordPatientName").textContent = record?.name || patient.name;
-        $("#recordPatientId").textContent = `ID: ${record?.patientId || patientDisplayId(patient)}`;
-        $("#recordPatientMobile").textContent = `Mobile: ${record?.mobile || patient.mobile || "-"}`;
+        updateRecordPatientHeader(patient);
+        setRecordPatientFieldsVisible(false);
         $("#recordVisitDate").textContent = dateTimeLabel(activeRecordCreatedAt);
         activeRecordDocs = {
           visit: record?.docs?.visit || record?.noteHtml || (record?.note ? plainTextToHtml(record.note) : "")
@@ -4842,6 +5107,8 @@ ${context}`;
         stopAmbientTracks({ releaseMic: true });
         draftMedicalRecord = null;
         extraDraftMedicalRecords = [];
+        pendingDoctorPatient = null;
+        setRecordPatientFieldsVisible(false);
         $("#medicalRecordScreen").classList.remove("open");
         $("#medicalRecordScreen").setAttribute("aria-hidden", "true");
         activeRecordPatientId = "";
@@ -6004,7 +6271,8 @@ ${context}`;
           }
           return;
         }
-        if (button.id === "openAddPatientBtn" || button.id === "openAddPatientNavBtn" || button.id === "openDoctorAddPatientBtn" || button.id === "openDoctorMobileAddPatientBtn") openAddPatientModal();
+        if (button.id === "openDoctorAddPatientBtn" || button.id === "openDoctorMobileAddPatientBtn") openDoctorBlankMedicalRecord();
+        if (button.id === "openAddPatientBtn" || button.id === "openAddPatientNavBtn") openAddPatientModal();
         if (button.id === "closeAddPatientBtn") closeAddPatientModal();
         if (button.id === "closeEditPatientBtn") closeEditPatientModal();
         if (button.id === "deleteEditPatientBtn") {
@@ -6171,8 +6439,8 @@ ${context}`;
           }
           closeRecordCommentsModal();
         }
-        if (button.id === "recordDeleteBtn" && activeRecordId) {
-          if (activeRecordView === "draft") deleteDraftMedicalEntry();
+        if (button.id === "recordDeleteBtn" && (activeRecordId || pendingDoctorPatient)) {
+          if (activeRecordView === "draft" || pendingDoctorPatient) deleteDraftMedicalEntry();
           else deleteMedicalEntry(activeRecordId);
         }
         if (button.id === "recordCloseBtn") closeMedicalRecordScreen();
@@ -6214,6 +6482,10 @@ ${context}`;
         if (event.target.matches("#neuroAnalysisRange, #neuroAnalysisMonth, #neuroAnalysisFromMonth, #neuroAnalysisToMonth, #neuroAnalysisYear")) renderNeuroReview();
         if (event.target.matches("[data-neuro-source]")) loadNeuroCenterIntoRow(event.target.closest("[data-neuro-source-row]"));
         if (event.target.matches("[data-ambient-mode-select]")) setAmbientMode(event.target.value);
+        if (event.target.closest("#recordPatientFields")) {
+          const patient = updatePendingPatientFromDraftFields();
+          if (patient) updateRecordPatientHeader(patient);
+        }
         if (event.target.dataset.testPatient) toggleTest(event.target.dataset.testPatient, event.target.dataset.testName, event.target.checked);
         if (event.target.id === "doctorPhone") { save(); renderMessages(); }
         if (event.target.closest("#medicalRecordScreen") && !event.target.matches("[data-ambient-mode-select]")) setRecordDirty();
@@ -6222,6 +6494,12 @@ ${context}`;
         if (event.target.id === "doctorPatientSearch") {
           doctorSearchQuery = event.target.value;
           renderDoctorPatientSearch();
+          return;
+        }
+        if (event.target.closest("#recordPatientFields")) {
+          const patient = updatePendingPatientFromDraftFields();
+          if (patient) updateRecordPatientHeader(patient);
+          setRecordDirty();
           return;
         }
         if (event.target.dataset.amount) { const [id, field] = event.target.dataset.amount.split(":"); event.target.value = event.target.value.replace(/\D/g, "").slice(0, 4); updatePayment(id, field, event.target.value, false); }
