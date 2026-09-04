@@ -184,9 +184,9 @@
       .status-pill.noshow { background: var(--danger); color: var(--danger-ink); }
       .selected-tests { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
       .selected-test-pill { border: 1px solid var(--line); border-radius: var(--radius); padding: 7px 10px; background: #f7fafb; color: #334454; font-size: 13px; font-weight: 800; }
-      .doctor-detail-pill { border: 1px solid var(--line); border-radius: var(--radius); padding: 7px 10px; background: #f7fafb; color: #334454; font-size: 13px; font-weight: 900; line-height: 1; white-space: nowrap; }
+      .doctor-detail-pill { border: 1px solid var(--line); border-radius: var(--radius); padding: 7px 10px; background: #f7fafb; color: #334454; font-size: 13px; font-weight: 900; line-height: 1; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; text-align: center; }
       .doctor-detail-pill.diagnosis-pill { background: #eef7f4; color: var(--green-dark); border-color: #bfe3dc; }
-      .comment-pill { display: inline-flex; align-items: center; min-height: 28px; border-radius: 999px; padding: 0 9px; background: #fff7ed; color: #9a3412; font-size: 12px; font-weight: 900; white-space: nowrap; }
+      .comment-pill { display: inline-flex; align-items: center; justify-content: center; text-align: center; min-height: 28px; border-radius: 999px; padding: 0 11px; background: #fff7ed; color: #9a3412; font-size: 13px; font-weight: 900; white-space: nowrap; line-height: 1; }
       .comment-choice-row { display: flex; flex-wrap: wrap; gap: 8px; }
       .comment-choice-row .choice { min-width: 118px; }
       .comment-other-input { margin-top: 8px; }
@@ -753,7 +753,7 @@
                 <label>Sex<select id="editSex"><option>Male</option><option>Female</option></select></label>
               </div>
               <div class="two">
-                <label>UHID / ID<input id="editPatientId" required inputmode="numeric" /></label>
+                <label>ID<input id="editPatientId" required inputmode="numeric" /></label>
                 <label>Mobile number<input id="editMobile" inputmode="tel" /></label>
               </div>
               <label>
@@ -4655,7 +4655,7 @@ NIL`)}`;
                 <div class="prescription-patient-meta">
                   Age: ${escapeHtml(patient?.age ? `${patient.age} years` : "-")} |
                   Sex: ${escapeHtml(patient?.sex || "-")} |
-                  UHID: ${escapeHtml(patient ? patientDisplayId(patient) : "-")} |
+                  ID: ${escapeHtml(patient ? patientDisplayId(patient) : "-")} |
                   ${escapeHtml(dateText)}
                 </div>
               </div>
@@ -6825,7 +6825,7 @@ NIL`)}`;
 
     var title = type === "certificate" ? "MEDICAL CERTIFICATE" : "REPLY LETTER";
     var patientLine = [
-      patient.id ? "UHID: " + patient.id : "",
+      patient.id ? "ID: " + patient.id : "",
       patient.mobile ? "Mobile: " + patient.mobile : "",
       patient.date
     ].filter(Boolean).join(" | ");
