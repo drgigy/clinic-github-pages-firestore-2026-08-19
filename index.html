@@ -241,8 +241,8 @@
       .print-box strong { font-size: 20px; }
       .record-screen { position: fixed; inset: 0; z-index: 30; display: none; grid-template-rows: auto 1fr; height: 100vh; background: #f6f9fa; color: var(--ink); overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif; }
       .record-screen.open { display: grid; }
-      .record-top { position: sticky; top: 0; z-index: 2; background: #fff; border-bottom: 1px solid var(--line); padding: 14px 18px; display: grid; grid-template-columns: minmax(320px, 1fr) auto; gap: 14px; align-items: start; }
-      .record-patient h1 { font-size: 22px; margin-bottom: 6px; font-weight: 900; }
+      .record-top { position: sticky; top: 0; z-index: 2; background: #fff; border-bottom: 1px solid var(--line); padding: 14px 18px; display: grid; grid-template-columns: minmax(260px, 1fr) auto; gap: 14px; align-items: start; }
+      .record-patient h1 { font-size: 20px; margin-bottom: 4px; font-weight: 900; }
       .record-meta { display: flex; flex-wrap: wrap; gap: 8px 14px; color: var(--muted); font-size: 13px; font-weight: 850; }
       .record-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
       .print-menu { position: relative; display: inline-flex; }
@@ -250,17 +250,20 @@
       .print-menu:hover .print-menu-panel,
       .print-menu:focus-within .print-menu-panel { opacity: 1; visibility: visible; pointer-events: auto; transform: translateY(0); transition-delay: 0s; }
       .print-menu-panel button { width: 100%; justify-content: flex-start; background: #f0f5f7; color: var(--ink); box-shadow: none; }
-      .record-body { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 14px; padding: 14px 18px 18px; min-height: 0; height: calc(100vh - 96px); overflow: hidden; }
+      .record-body { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 14px; padding: 10px 18px 18px; min-height: 0; height: calc(100vh - 92px); overflow: hidden; }
       @media (min-width: 761px) {
-        .record-top { align-items: center; padding: 10px 18px; }
+        .record-top { align-items: center; padding: 8px 18px; }
         .record-actions { flex-wrap: nowrap; align-items: center; }
+        .record-actions .primary,
+        .record-actions .secondary { min-height: 34px; padding: 0 11px; font-size: 14px; }
         .record-actions > button,
         .record-actions .print-menu > button { width: auto; white-space: nowrap; }
         .print-menu { flex: 0 0 auto; }
-        .record-body { height: calc(100vh - 82px); padding-top: 10px; }
+        .record-body { height: calc(100vh - 72px); padding-top: 8px; }
       }
       .record-main { display: grid; grid-template-rows: auto 1fr; gap: 10px; min-height: 0; height: 100%; }
       .record-status { min-height: 20px; color: var(--muted); font-size: 13px; font-weight: 850; }
+      .record-status:empty { display: none; }
       .ambient-dock { display: none; position: fixed; left: 14px; bottom: 22px; z-index: 45; width: 9cm; height: 6cm; padding: 13px 16px; border: 0; border-radius: 18px; background: #1b1b1d; color: #f7f7fb; box-shadow: 0 20px 46px rgba(16, 24, 43, .28); user-select: none; touch-action: none; cursor: move; }
       .ambient-dock.visible { display: grid; grid-template-rows: auto 1fr; gap: 6px; }
       .ambient-float-head { display: flex; align-items: center; justify-content: flex-start; min-height: 22px; cursor: move; }
