@@ -171,7 +171,7 @@
       .consult-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .doctor-consult-head { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 14px; margin-bottom: 0; min-height: 40px; }
       .doctor-consult-identity { min-width: 0; display: grid; grid-template-columns: minmax(220px, 260px) minmax(0, 1fr); align-items: center; column-gap: 10px; }
-      .doctor-identity-tags { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+      .doctor-identity-tags { display: inline-flex; align-items: center; justify-content: center; justify-self: center; gap: 8px; flex-wrap: wrap; min-width: 0; width: 100%; }
       .doctor-consult-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
       .doctor-test-centre { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; min-height: 34px; width: min(280px, 32%); pointer-events: none; }
       .doctor-test-centre .selected-test-pill { pointer-events: auto; }
@@ -186,7 +186,7 @@
       .selected-test-pill { border: 1px solid var(--line); border-radius: var(--radius); padding: 7px 10px; background: #f7fafb; color: #334454; font-size: 13px; font-weight: 800; }
       .doctor-detail-pill { border: 1px solid var(--line); border-radius: var(--radius); padding: 7px 10px; background: #f7fafb; color: #334454; font-size: 13px; font-weight: 900; line-height: 1; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; text-align: center; }
       .doctor-detail-pill.diagnosis-pill { background: #eef7f4; color: var(--green-dark); border-color: #bfe3dc; }
-      .comment-pill { display: inline-flex; align-items: center; justify-content: center; text-align: center; min-height: 28px; border-radius: 999px; padding: 0 11px; background: #fff7ed; color: #9a3412; font-size: 13px; font-weight: 900; white-space: nowrap; line-height: 1; }
+      .comment-pill { display: inline-flex; align-items: center; justify-content: center; text-align: center; min-width: 64px; min-height: 28px; border-radius: 999px; padding: 0 11px; background: #fff7ed; color: #9a3412; font-size: 13px; font-weight: 900; white-space: nowrap; line-height: 1; }
       .comment-choice-row { display: flex; flex-wrap: wrap; gap: 8px; }
       .comment-choice-row .choice { min-width: 118px; }
       .comment-other-input { margin-top: 8px; }
