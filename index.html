@@ -2314,6 +2314,38 @@
           currentMedications: patient.currentMedications || ""
         };
       }
+      function collectPatientIdentityFromNoteText(value) {
+        const identity = {};
+        String(value || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean).forEach((line) => {
+          const match = line.match(/^(patient\s+name|name|age|sex|uhid|id|mobile|mobile\s+number)\s*:\s*(.*)$/i);
+          if (!match) return;
+          const key = match[1].toLowerCase().replace(/\s+/g, " ");
+          const text = match[2].trim();
+          if (!text) return;
+          if (key === "patient name" || key === "name") identity.name = text;
+          if (key === "age") identity.age = text.replace(/\s*years?$/i, "").trim();
+          if (key === "sex") identity.sex = normaliseDraftSex(text);
+          if (key === "uhid" || key === "id") identity.patientId = text;
+          if (key === "mobile" || key === "mobile number") identity.mobile = text;
+        });
+        return identity;
+      }
+      function collectRecordPatientIdentityFromNote() {
+        const html = $("#medicalNoteText")?.innerHTML || activeRecordDocs.visit || "";
+        return collectPatientIdentityFromNoteText(htmlToPlainText(html));
+      }
+      function applyRecordPatientIdentityFromNote(patient) {
+        if (!patient) return {};
+        const identity = collectRecordPatientIdentityFromNote();
+        Object.entries(identity).forEach(([key, value]) => {
+          if (value) patient[key] = value;
+        });
+        if (identity.name || identity.mobile || identity.patientId) {
+          patient.sharedPatientIdentity = sharedPatientIdentity(patient);
+        }
+        syncPendingDoctorDraft(patient);
+        return identity;
+      }
       function normaliseDraftSex(value) {
         const text = String(value || "").trim().toLowerCase();
         if (/^m(ale)?$/.test(text)) return "Male";
@@ -2353,6 +2385,7 @@
           diagnosis: pendingDoctorPatient.diagnosis || "Others",
           mode: pendingDoctorPatient.mode || "In clinic"
         });
+        applyRecordPatientIdentityFromNote(pendingDoctorPatient);
         syncPendingDoctorDraft(pendingDoctorPatient);
         return pendingDoctorPatient;
       }
@@ -5301,6 +5334,8 @@ NIL`)}`;
         }
         if (!activeRecordId) return;
         persistCurrentRecordTab();
+        applyRecordPatientIdentityFromNote(patient);
+        updateRecordPatientHeader(patient);
         const details = collectRecordDetails();
         Object.assign(patient, {
           age: details.age,
