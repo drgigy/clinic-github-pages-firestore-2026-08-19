@@ -413,6 +413,14 @@
       .smart-chart-actions { display: flex; justify-content: flex-end; gap: 8px; }
       .smart-chart-section { display: grid; gap: 8px; break-inside: avoid; }
       .smart-chart-section h3 { font-size: 16px; font-weight: 900; padding-bottom: 5px; border-bottom: 1px solid var(--line); }
+      .patient-snapshot { border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; background: #fff; display: grid; gap: 10px; }
+      .patient-snapshot h2 { font-size: 18px; font-weight: 950; margin: 0; }
+      .snapshot-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 8px; }
+      .snapshot-item { border: 1px solid #edf2f5; border-radius: 6px; padding: 9px 10px; background: #fbfdfe; min-width: 0; }
+      .snapshot-item h3 { border: 0; padding: 0; margin: 0 0 5px; font-size: 13px; font-weight: 950; color: #334454; }
+      .snapshot-item ul { margin: 0; padding-left: 17px; display: grid; gap: 3px; }
+      .snapshot-item li { font-size: 13px; line-height: 1.35; }
+      .snapshot-empty { color: var(--muted); font-weight: 750; }
       .smart-chart-graphs { display: grid; grid-template-columns: 1fr; gap: 10px; }
       .blood-chart { border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; background: #fff; box-shadow: 0 1px 3px rgba(16, 32, 43, .05); }
       .blood-chart-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 6px; font-size: 15px; font-weight: 900; }
@@ -422,6 +430,8 @@
       .blood-chart-value-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; border: 1px solid #edf2f5; border-radius: 6px; padding: 7px 9px; background: #fbfdfe; }
       .blood-chart-date { color: var(--muted); font-weight: 850; white-space: nowrap; }
       .blood-chart-number { color: #991b1b; font-weight: 900; white-space: nowrap; }
+      .vitals-chart svg { height: 280px; }
+      .vitals-chart .blood-chart-number { color: var(--green-dark); }
       .smart-result-list { display: grid; gap: 8px; }
       .smart-result-row { display: grid; grid-template-columns: 140px 150px minmax(0, 1fr) auto; gap: 12px; padding: 10px 0; border-bottom: 1px solid #edf2f5; break-inside: avoid; }
       .smart-result-date { color: var(--muted); font-size: 13px; font-weight: 900; }
@@ -2502,7 +2512,9 @@ Use "First consultation" as visitType unless the doctor clearly says review.
 Patient comments can include dictated labels such as relative, VIP, doctor referral, free, or similar administrative comments.
 
 For note, create the same visit note text you would normally create.
-Use these headings, in this order, but OMIT a heading completely if no information was dictated for that section:
+Use these headings, in this order. Include the Vitals heading as the first heading every time, even if no vitals were dictated. For all other headings, omit the heading completely if no information was dictated for that section:
+
+Vitals:
 
 Chief Complaints:
 History of Present Illness:
@@ -2514,6 +2526,12 @@ Current Medications:
 Diagnosis:
 Prescription:
 Advice / Instructions:
+
+Vitals rule:
+- Vitals: use one compact line if dictated, for example "BP 120/80 mmHg; Pulse 78/min; SpO2 98%; Height 170 cm; Weight 70 kg; BMI 24.2 kg/m2".
+- Include only dictated vitals.
+- If height and weight are both dictated and BMI is not dictated, calculate BMI from height and weight and add it to the same line.
+- Do not guess missing vitals.
 
 Do not include patient name, age, sex, mobile number, UHID, or administrative comments inside the note unless clinically relevant.
 Never add clinical information that was not spoken.
@@ -2529,7 +2547,9 @@ Do not remove any dictated detail.
 Return plain text only. Do not return JSON. Do not use markdown fences.
 Do not create a full visit note. Do not include patient demographics.
 
-Use only these headings, in this order, and omit a heading only if there is no dictated content for that section:
+Use only these headings, in this order. Include the Vitals heading as the first heading every time, even if no vitals were dictated. For all other headings, omit headings with no content:
+
+Vitals:
 
 Review Note:
 
@@ -2541,16 +2561,18 @@ Prescription:
 
 Advice / Instructions:
 
+Preserve every dictated clinical detail. Do not add, infer, assume, or delete clinical information.
 Plain review text should go under Review Note.
-If allergies or allergens are mentioned, put them under Allergies.
-If the dictation contains review of investigations, scan results, lab results, MRI, CT, EEG, NCS, blood reports, or report review, use this heading:
-Review of Investigations:
+Move allergy/allergen information under Allergies.
+Move BP, blood pressure, pulse, heart rate, SpO2, oxygen saturation, height, weight, and BMI under Vitals.
+Under Vitals, use one compact line if dictated, for example "BP 120/80 mmHg; Pulse 78/min; SpO2 98%; Height 170 cm; Weight 70 kg; BMI 24.2 kg/m2". Include only dictated vitals. If height and weight are both dictated and BMI is not dictated, calculate BMI from height and weight and add it to the same line. Do not guess missing vitals.
+Move MRI, CT, EEG, NCS, ECG, scan, imaging, blood reports, lab values, and report-review content under Review of Investigations.
 
 Under Review of Investigations, arrange investigations like the main visit-note template:
 - organize by test/report name and date when dictated
 - put each investigation/report as a separate numbered item
 - under each imaging/report item, place each finding on a separate line
-- for blood reports, include each value on a separate line with appropriate units
+- for blood reports, include each value on a separate line and add conventional units when absent
 
 If medicines are dictated, use Prescription and format every medicine like this:
 1. Tablet Drug name dose
@@ -2654,7 +2676,9 @@ Do not add, infer, assume, or hallucinate clinical information.
 If something is unclear, write it as unclear instead of guessing.
 Return a single plain text medical note only. Do not return JSON. Do not use markdown fences.
 
-Use these headings, in this order, but OMIT a heading completely if no information was dictated for that section:
+Use these headings, in this order. Include the Vitals heading as the first heading every time, even if no vitals were dictated. For all other headings, omit the heading completely if no information was dictated for that section:
+
+Vitals:
 
 Chief Complaints:
 
@@ -2682,6 +2706,7 @@ Do not create extra headings.
 Never create a separate "Orders" heading. If the doctor dictates the word "orders", intelligently place those dictated items at the end under Prescription or Advice / Instructions.
 
 Formatting rules:
+- Vitals: use one compact line if dictated, for example "BP 120/80 mmHg; Pulse 78/min; SpO2 98%; Height 170 cm; Weight 70 kg; BMI 24.2 kg/m2". Include only dictated vitals. If height and weight are both dictated and BMI is not dictated, calculate BMI from height and weight and add it to the same line. Do not guess missing vitals.
 - Chief Complaints: each complaint on a separate line.
 - History of Present Illness: one or two concise paragraphs.
 - Past Medical or Surgical History: line by line.
@@ -3264,9 +3289,11 @@ ${context}`;
       }
       function formatAddOnReviewText(text) {
         const lines = String(text || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-        if (!lines.length) return "Review Note:";
+        if (!lines.length) return "Vitals:";
+        const hasVitals = lines.some((line) => /^vitals\s*:?\s*$/i.test(line) || /^vitals\s*:/i.test(line));
         const hasReviewNote = lines.some((line) => /^review note\s*:?\s*$/i.test(line));
-        return hasReviewNote ? lines.join("\n") : ["Review Note:", ...lines].join("\n");
+        const withReview = hasReviewNote ? lines : ["Review Note:", ...lines];
+        return hasVitals ? withReview.join("\n") : ["Vitals:", ...withReview].join("\n");
       }
       function parseUnregisteredVisitOutput(text) {
         const raw = String(text || "").trim();
@@ -3653,7 +3680,10 @@ ${context}`;
         </div>`;
       }
       function blankVisitNoteTemplateHtml(patient = {}) {
-        return `<span class="visit-note-title">Visit Note</span>${doctorDraftPatientLineHtml(patient)}${plainTextToHtml(`Presenting Complaint:
+        return `<span class="visit-note-title">Visit Note</span>${doctorDraftPatientLineHtml(patient)}${plainTextToHtml(`Vitals:
+NIL
+
+Chief Complaints:
 NIL
 
 History of Present Illness:
@@ -3663,12 +3693,6 @@ Past Medical or Surgical History:
 NIL
 
 Allergies:
-NIL
-
-Family History:
-NIL
-
-Personal History:
 NIL
 
 Examination Findings:
@@ -3687,9 +3711,6 @@ Prescription:
 NIL
 
 Advice / Instructions:
-NIL
-
-Review Note:
 NIL`)}`;
       }
       function htmlToPlainText(value) {
@@ -3698,7 +3719,7 @@ NIL`)}`;
         return container.innerText || container.textContent || "";
       }
       function isVisitNoteHeadingLine(value) {
-        return /^(chief complaints?|presenting complaints?|history of present illness|past medical or surgical history|allergies|family history|personal history|examination findings?|review of investigations|current medications?|diagnosis|prescription|advice(?:\s*\/\s*instructions)?|review note)\s*:$/i.test(String(value || "").trim());
+        return /^(vitals|chief complaints?|presenting complaints?|history of present illness|past medical or surgical history|allergies|family history|personal history|examination findings?|review of investigations|current medications?|diagnosis|prescription|advice(?:\s*\/\s*instructions)?|review note)\s*:$/i.test(String(value || "").trim());
       }
       function boldVisitNoteHeadingsHtml(value) {
         const source = String(value || "");
@@ -3811,10 +3832,108 @@ NIL`)}`;
       }
       function smartChartLines(record) {
         return htmlToPlainText(timelineRecordBody(record))
-          .replace(/\b(Investigations?|Review of investigations|Reports?|Blood reports?|Blood tests?|Medications?|Prescription|Rx|Advice|Diagnosis)\s*:/gi, "\n$1:")
+          .replace(/\b(Vitals|Chief Complaints?|Presenting Complaints?|History of Present Illness|Past Medical or Surgical History|Allergies?|Examination Findings?|Investigations?|Review of investigations|Reports?|Blood reports?|Blood tests?|Labs|Current Medications?|Medications?|Treatment\s*\/\s*Medications|Prescription|Rx|Advice\s*\/\s*Instructions|Advice|Instructions|Follow-?up|Plan|Diagnosis|Review Note)\s*:/gi, "\n$1:")
           .split("\n")
           .map((line) => line.trim())
           .filter(Boolean);
+      }
+      function smartChartHeadingInfo(value) {
+        const match = String(value || "").trim().match(/^(vitals|chief complaints?|presenting complaints?|history of present illness|past medical or surgical history|allergies?|examination findings?|review of investigations|investigations?|reports?|blood reports?|blood tests?|labs|laboratory results?|current medications?|medications?|treatment\s*\/\s*medications|prescription|rx|advice\s*\/\s*instructions|advice|instructions|follow-?up|plan|diagnosis|review note)\s*:?\s*(.*)$/i);
+        if (!match) return null;
+        const heading = match[1].toLowerCase().replace(/\s+/g, " ").trim();
+        const content = cleanSummaryLine(match[2] || "");
+        let key = "";
+        if (heading === "vitals") key = "vitals";
+        else if (/allerg/.test(heading)) key = "allergies";
+        else if (heading === "diagnosis") key = "diagnosis";
+        else if (/^(review of investigations|investigations?|reports?|blood reports?|blood tests?|labs|laboratory results?)$/.test(heading)) key = "investigations";
+        else if (/^(current medications?|medications?|treatment\s*\/\s*medications|prescription|rx)$/.test(heading)) key = /prescription|rx/.test(heading) ? "prescription" : "medicines";
+        else if (/^(advice\s*\/\s*instructions|advice|instructions|follow-?up|plan)$/.test(heading)) key = "advice";
+        else if (heading === "review note") key = "course";
+        else if (/^(chief complaints?|presenting complaints?|history of present illness|past medical or surgical history|examination findings?)$/.test(heading)) key = "course";
+        if (!key) return null;
+        return { key, content };
+      }
+      function isEmptyClinicalLine(value) {
+        return /^(nil|none|no|not dictated|not mentioned|not available|na|n\/a|-)+\.?$/i.test(String(value || "").trim());
+      }
+      function smartChartRecordSections(record) {
+        const sections = { vitals: [], allergies: [], diagnosis: [], investigations: [], medicines: [], prescription: [], advice: [], course: [] };
+        let current = "";
+        smartChartLines(record).forEach((line) => {
+          const cleaned = cleanSummaryLine(line);
+          if (!cleaned) return;
+          const heading = smartChartHeadingInfo(cleaned);
+          if (heading) {
+            current = heading.key;
+            if (heading.content && !isEmptyClinicalLine(heading.content)) sections[current].push(heading.content);
+            return;
+          }
+          if (current && !isEmptyClinicalLine(cleaned)) sections[current].push(cleaned);
+        });
+        return sections;
+      }
+      function uniqueConciseItems(items, limit = 4) {
+        const seen = new Set();
+        const clean = [];
+        items.forEach((item) => {
+          const value = cleanSummaryLine(item).replace(/\s+/g, " ").trim();
+          if (!value || isEmptyClinicalLine(value)) return;
+          const key = value.toLowerCase();
+          if (seen.has(key)) return;
+          seen.add(key);
+          clean.push(value);
+        });
+        return clean.slice(-limit);
+      }
+      function extractNumber(value) {
+        const match = String(value || "").match(/(\d+(?:\.\d+)?)/);
+        return match ? Number(match[1]) : null;
+      }
+      function normaliseHeightCm(value) {
+        const source = String(value || "");
+        const number = extractNumber(source);
+        if (!Number.isFinite(number)) return null;
+        if (/\b(m|metre|meter|metres|meters)\b/i.test(source) && !/\bcm\b/i.test(source)) return number * 100;
+        return number;
+      }
+      function normaliseWeightKg(value) {
+        const number = extractNumber(value);
+        return Number.isFinite(number) ? number : null;
+      }
+      function smartChartParseVitalsText(text) {
+        const source = String(text || "");
+        const vitals = {};
+        const bp = source.match(/\b(?:bp|blood pressure)\b\s*[:=\-]?\s*(\d{2,3})\s*\/\s*(\d{2,3})(?:\s*mm\s*hg|\s*mmhg)?/i);
+        if (bp) {
+          vitals.bpSystolic = Number(bp[1]);
+          vitals.bpDiastolic = Number(bp[2]);
+        }
+        const pulse = source.match(/\b(?:pulse|pulse rate|heart rate|hr)\b\s*[:=\-]?\s*(\d{2,3})(?:\s*(?:\/\s*min|bpm|per\s*minute))?/i);
+        if (pulse) vitals.pulse = Number(pulse[1]);
+        const spo2 = source.match(/\b(?:spo2|sp\s*o2|oxygen saturation|saturation)\b\s*[:=\-]?\s*(\d{2,3})(?:\s*%)?/i);
+        if (spo2) vitals.spo2 = Number(spo2[1]);
+        const height = source.match(/\b(?:height|ht)\b\s*[:=\-]?\s*(\d+(?:\.\d+)?)\s*(cm|m|metre|meter|metres|meters)?/i);
+        if (height) vitals.height = normaliseHeightCm(height[0]);
+        const weight = source.match(/\b(?:weight|wt)\b\s*[:=\-]?\s*(\d+(?:\.\d+)?)\s*(kg|kgs|kilogram|kilograms)?/i);
+        if (weight) vitals.weight = normaliseWeightKg(weight[0]);
+        const bmi = source.match(/\bbmi\b\s*[:=\-]?\s*(\d+(?:\.\d+)?)/i);
+        if (bmi) vitals.bmi = Number(bmi[1]);
+        if (Number.isFinite(vitals.height) && Number.isFinite(vitals.weight) && !Number.isFinite(vitals.bmi)) {
+          const heightM = vitals.height / 100;
+          if (heightM > 0) vitals.bmi = Number((vitals.weight / (heightM * heightM)).toFixed(1));
+        }
+        return vitals;
+      }
+      function smartChartVitalsLine(vitals) {
+        const parts = [];
+        if (Number.isFinite(vitals.bpSystolic) && Number.isFinite(vitals.bpDiastolic)) parts.push(`BP ${vitals.bpSystolic}/${vitals.bpDiastolic} mmHg`);
+        if (Number.isFinite(vitals.pulse)) parts.push(`Pulse ${vitals.pulse}/min`);
+        if (Number.isFinite(vitals.spo2)) parts.push(`SpO2 ${vitals.spo2}%`);
+        if (Number.isFinite(vitals.height)) parts.push(`Height ${Number(vitals.height.toFixed(1)).toString()} cm`);
+        if (Number.isFinite(vitals.weight)) parts.push(`Weight ${Number(vitals.weight.toFixed(1)).toString()} kg`);
+        if (Number.isFinite(vitals.bmi)) parts.push(`BMI ${Number(vitals.bmi.toFixed(1)).toString()} kg/m2`);
+        return parts.join("; ");
       }
       function smartChartDateLabel(record) {
         return smartChartShortDateLabel(record.date || recordTimestamp(record).slice(0, 10));
@@ -3865,7 +3984,7 @@ NIL`)}`;
         return /^(blood reports?|blood tests?|labs?|laboratory results?)\s*:?\s*$/i.test(value);
       }
       function isSmartChartStopHeading(value) {
-        return /^(medications?|current medications?|prescription|rx|treatment\s*\/\s*medications?|advice|follow up|plan|diagnosis|chief complaints?|history|examination)\s*:?\s*$/i.test(value);
+        return /^(vitals|allergies?|medications?|current medications?|prescription|rx|treatment\s*\/\s*medications?|advice|instructions|advice\s*\/\s*instructions|follow-?up|plan|diagnosis|chief complaints?|presenting complaints?|history|history of present illness|past medical or surgical history|examination|examination findings?|review note)\s*:?\s*$/i.test(value);
       }
       function smartChartTestPattern() {
         return /\b(mri|m\.r\.i|ct|c\.t|scan|x-?ray|eeg|ncs|ncv|emg|baer|bera|vep|doppler|angiogram|ultrasound|usg|pet|spect|ecg|echo)\b/i;
@@ -4026,7 +4145,7 @@ NIL`)}`;
             section = "medications";
             return;
           }
-          if (/^(chief complaints?|history|examination|diagnosis|advice|follow up|plan)\s*:?\s*$/i.test(cleaned)) {
+          if (/^(vitals|allergies?|chief complaints?|presenting complaints?|history|history of present illness|past medical or surgical history|examination|examination findings?|diagnosis|advice|instructions|advice\s*\/\s*instructions|follow-?up|plan|review note)\s*:?\s*$/i.test(cleaned)) {
             section = "";
             return;
           }
@@ -4076,6 +4195,121 @@ NIL`)}`;
         return [...series.entries()]
           .map(([label, points]) => ({ label, points: points.sort((a, b) => new Date(a.date) - new Date(b.date)) }))
           .filter((item) => item.points.length);
+      }
+      function smartChartVitalsRows(records) {
+        return records.map((record) => {
+          const sections = smartChartRecordSections(record);
+          const vitalsText = sections.vitals.join("; ");
+          const vitals = smartChartParseVitalsText(vitalsText);
+          const hasVitals = Object.values(vitals).some(Number.isFinite);
+          if (!hasVitals) return null;
+          return {
+            date: recordTimestamp(record),
+            label: smartChartDateLabel(record),
+            vitals,
+            text: smartChartVitalsLine(vitals)
+          };
+        }).filter(Boolean).sort((a, b) => new Date(a.date) - new Date(b.date));
+      }
+      function patientSnapshotHtml(patient, records) {
+        const sections = records.map(smartChartRecordSections);
+        const all = (key) => sections.flatMap((section) => section[key] || []);
+        const diagnosisItems = uniqueConciseItems([
+          patient.customDiagnosis || patient.diagnosis || "",
+          ...all("diagnosis")
+        ], 5);
+        const investigationItems = uniqueConciseItems([
+          ...smartChartInvestigationRows(records).map((row) => `${row.label}: ${row.test} - ${row.text}`),
+          ...all("investigations")
+        ], 5);
+        const vitalsItems = uniqueConciseItems(smartChartVitalsRows(records).map((row) => `${row.label}: ${row.text}`), 4);
+        const snapshot = [
+          ["Allergies", uniqueConciseItems(all("allergies"), 4)],
+          ["Vitals", vitalsItems],
+          ["Diagnosis / Problem List", diagnosisItems],
+          ["Recent Course", uniqueConciseItems(all("course"), 5)],
+          ["Key Investigations", investigationItems],
+          ["Current / Recent Medicines", uniqueConciseItems([...all("medicines"), ...all("prescription")], 5)],
+          ["Advice / Follow-up", uniqueConciseItems(all("advice"), 5)]
+        ];
+        return `
+          <section class="patient-snapshot">
+            <h2>Patient Snapshot</h2>
+            <div class="snapshot-grid">
+              ${snapshot.map(([title, items]) => `
+                <div class="snapshot-item">
+                  <h3>${escapeHtml(title)}</h3>
+                  ${items.length
+                    ? `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`
+                    : `<div class="snapshot-empty">No clear saved information.</div>`}
+                </div>
+              `).join("")}
+            </div>
+          </section>
+        `;
+      }
+      function vitalsChartHtml(rows) {
+        if (!rows.length) return "";
+        const items = [
+          { key: "bp", label: "BP", value: (v) => Number.isFinite(v.bpSystolic) && Number.isFinite(v.bpDiastolic) ? `${v.bpSystolic}/${v.bpDiastolic}` : "" },
+          { key: "pulse", label: "Pulse", value: (v) => Number.isFinite(v.pulse) ? `${v.pulse}/min` : "" },
+          { key: "spo2", label: "SpO2", value: (v) => Number.isFinite(v.spo2) ? `${v.spo2}%` : "" },
+          { key: "height", label: "Height", value: (v) => Number.isFinite(v.height) ? `${Number(v.height.toFixed(1))} cm` : "" },
+          { key: "weight", label: "Weight", value: (v) => Number.isFinite(v.weight) ? `${Number(v.weight.toFixed(1))} kg` : "" },
+          { key: "bmi", label: "BMI", value: (v) => Number.isFinite(v.bmi) ? `${Number(v.bmi.toFixed(1))}` : "" }
+        ].filter((item) => rows.some((row) => item.value(row.vitals)));
+        if (!items.length) return "";
+        const width = 760;
+        const height = 76 + items.length * 38;
+        const padLeft = 86;
+        const padRight = 34;
+        const padTop = 28;
+        const padBottom = 44;
+        const xFor = (index) => rows.length === 1 ? (padLeft + width - padRight) / 2 : padLeft + (index * (width - padLeft - padRight)) / (rows.length - 1);
+        const yFor = (index) => padTop + index * 38;
+        return `
+          <article class="blood-chart vitals-chart">
+            <button class="smart-delete-btn" type="button" data-smart-delete-card="true">Delete</button>
+            <div class="blood-chart-head">
+              <span class="smart-editable" contenteditable="true">Vitals Across Visits</span>
+              <span class="blood-chart-unit">Vitals section only</span>
+            </div>
+            <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Vitals across visits">
+              ${items.map((item, itemIndex) => {
+                const y = yFor(itemIndex);
+                return `
+                  <line x1="${padLeft}" y1="${y}" x2="${width - padRight}" y2="${y}" stroke="#edf2f5" stroke-width="1" />
+                  <text x="${padLeft - 12}" y="${y + 5}" text-anchor="end" fill="#334454" font-size="13" font-weight="900">${escapeHtml(item.label)}</text>
+                `;
+              }).join("")}
+              <line x1="${padLeft}" y1="${padTop - 12}" x2="${padLeft}" y2="${yFor(items.length - 1) + 12}" stroke="#d9e4ea" stroke-width="1.6" />
+              ${rows.map((row, rowIndex) => {
+                const x = xFor(rowIndex);
+                return `
+                  <line x1="${x.toFixed(1)}" y1="${padTop - 12}" x2="${x.toFixed(1)}" y2="${yFor(items.length - 1) + 12}" stroke="#f3f7f8" stroke-width="1" />
+                  <text x="${x.toFixed(1)}" y="${height - 13}" text-anchor="middle" fill="#627489" font-size="12" font-weight="850">${escapeHtml(row.label || "")}</text>
+                  ${items.map((item, itemIndex) => {
+                    const value = item.value(row.vitals);
+                    if (!value) return "";
+                    const y = yFor(itemIndex);
+                    return `
+                      <circle cx="${x.toFixed(1)}" cy="${y}" r="5" fill="#fff" stroke="#14796f" stroke-width="3" />
+                      <text x="${x.toFixed(1)}" y="${y - 10}" text-anchor="middle" fill="#0f5f57" font-size="12" font-weight="900">${escapeHtml(value)}</text>
+                    `;
+                  }).join("")}
+                `;
+              }).join("")}
+            </svg>
+            <div class="blood-chart-values">
+              ${rows.map((row) => `
+                <div class="blood-chart-value-row">
+                  <span class="blood-chart-date">${escapeHtml(row.label || "-")}</span>
+                  <span class="blood-chart-number">${escapeHtml(row.text)}</span>
+                </div>
+              `).join("")}
+            </div>
+          </article>
+        `;
       }
       function bloodChartHtml(series) {
         const values = series.points.map((point) => point.value);
@@ -4136,6 +4370,7 @@ NIL`)}`;
       }
       function smartChartHtml(patient, records) {
         const bloodSeries = smartChartBloodSeries(records);
+        const vitalsRows = smartChartVitalsRows(records);
         return `
           <div class="smart-chart-view">
             <div class="smart-chart-header">
@@ -4151,6 +4386,12 @@ NIL`)}`;
             <div class="smart-chart-actions">
               <button class="primary" type="button" data-print-smart-chart="true">Print / Save PDF</button>
             </div>
+            ${patientSnapshotHtml(patient, records)}
+            ${vitalsRows.length ? `
+              <section class="smart-chart-section">
+                <div class="smart-chart-graphs">${vitalsChartHtml(vitalsRows)}</div>
+              </section>
+            ` : ""}
             ${bloodSeries.length ? `
               <section class="smart-chart-section">
                 <div class="smart-chart-graphs">${bloodSeries.map(bloodChartHtml).join("")}</div>
