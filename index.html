@@ -408,6 +408,8 @@
       .timeline-entry h2 { font-size: 16px; margin-bottom: 10px; font-weight: 900; }
       .smart-chart-view { display: grid; gap: 10px; max-width: none; margin: 0; }
       .smart-chart-header { display: grid; grid-template-columns: 1fr; gap: 4px; border-bottom: 1px solid var(--line); padding-bottom: 7px; }
+      .smart-chart-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+      .smart-chart-title-row h2 { font-size: 18px; font-weight: 950; margin: 0; }
       .smart-chart-header h1 { font-size: 20px; font-weight: 950; margin: 0; }
       .smart-chart-header p { color: var(--muted); font-size: 13px; font-weight: 750; }
       .smart-patient-meta { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 5px; color: #334454; font-size: 13px; font-weight: 850; }
@@ -436,6 +438,8 @@
       .myvoice-summary { display: grid; gap: 12px; }
       .myvoice-section { border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; background: #fff; break-inside: avoid; }
       .myvoice-section h2 { font-size: 17px; font-weight: 950; margin: 0 0 8px; }
+      .myvoice-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+      .myvoice-section-head h2 { margin: 0; }
       .myvoice-entry { border-top: 1px solid #edf2f5; padding-top: 8px; margin-top: 8px; }
       .myvoice-entry:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
       .myvoice-date { color: var(--muted); font-size: 13px; font-weight: 900; margin-bottom: 5px; }
@@ -4526,9 +4530,14 @@ NIL`)}`;
         }).filter((entry) => entry.items.length);
       }
       function myVoiceTimelineSectionHtml(title, entries) {
+        const headingHtml = title ? `
+          <div class="myvoice-section-head">
+            <h2>${escapeHtml(title)}</h2>
+          </div>
+        ` : "";
         return `
           <section class="myvoice-section">
-            <h2>${escapeHtml(title)}</h2>
+            ${headingHtml}
             ${entries.length ? entries.map((entry) => `
               <div class="myvoice-entry">
                 <div class="myvoice-date">${escapeHtml(entry.label)}</div>
@@ -4560,6 +4569,12 @@ NIL`)}`;
         return `
           <div class="smart-chart-view myvoice-summary">
             <div class="smart-chart-header">
+              <div class="smart-chart-title-row">
+                <h2>Health Summary</h2>
+                <div class="smart-chart-actions">
+                  <button class="primary" type="button" data-print-smart-chart="true">Print / Save PDF</button>
+                </div>
+              </div>
               <div>
                 <h1>${escapeHtml(patient.name || "Patient")}</h1>
                 <div class="smart-patient-meta">
@@ -4569,10 +4584,7 @@ NIL`)}`;
                 </div>
               </div>
             </div>
-            <div class="smart-chart-actions">
-              <button class="primary" type="button" data-print-smart-chart="true">Print / Save PDF</button>
-            </div>
-            ${myVoiceTimelineSectionHtml("Chronological Timeline", myVoiceDatedEntries(records, ["diagnosis", "allergies", "course"]))}
+            ${myVoiceTimelineSectionHtml("", myVoiceDatedEntries(records, ["diagnosis", "allergies", "course"]))}
             ${vitalsRows.length ? `<section class="smart-chart-section"><div class="smart-chart-graphs">${vitalsChartHtml(vitalsRows)}</div></section>` : myVoiceTimelineSectionHtml("Vitals Across Visits", [])}
             ${myVoiceTimelineSectionHtml("Investigation Timeline", myVoiceDatedEntries(records, ["investigations"]))}
             ${bloodSeries.length ? `<section class="smart-chart-section"><div class="smart-chart-graphs">${bloodSeries.map(bloodChartHtml).join("")}</div></section>` : ""}
