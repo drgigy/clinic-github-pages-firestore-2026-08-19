@@ -2528,8 +2528,8 @@ Prescription:
 Advice / Instructions:
 
 Vitals rule:
-- Vitals: use one compact line if dictated, for example "BP 120/80 mmHg; Pulse 78/min; SpO2 98%; Height 170 cm; Weight 70 kg; BMI 24.2 kg/m2".
-- Include only dictated vitals.
+- Under Vitals, always show one compact line with these labels in this order: "BP: ; Pulse rate: ; Oxygen saturation: ; Height: ; Weight: ; BMI:".
+- Fill only dictated vitals, for example "BP: 120/80 mmHg; Pulse rate: 78/min; Oxygen saturation: 98%; Height: 170 cm; Weight: 70 kg; BMI: 24.2 kg/m2".
 - If height and weight are both dictated and BMI is not dictated, calculate BMI from height and weight and add it to the same line.
 - Do not guess missing vitals.
 
@@ -2565,7 +2565,7 @@ Preserve every dictated clinical detail. Do not add, infer, assume, or delete cl
 Plain review text should go under Review Note.
 Move allergy/allergen information under Allergies.
 Move BP, blood pressure, pulse, heart rate, SpO2, oxygen saturation, height, weight, and BMI under Vitals.
-Under Vitals, use one compact line if dictated, for example "BP 120/80 mmHg; Pulse 78/min; SpO2 98%; Height 170 cm; Weight 70 kg; BMI 24.2 kg/m2". Include only dictated vitals. If height and weight are both dictated and BMI is not dictated, calculate BMI from height and weight and add it to the same line. Do not guess missing vitals.
+Under Vitals, always show one compact line with these labels in this order: "BP: ; Pulse rate: ; Oxygen saturation: ; Height: ; Weight: ; BMI:". Fill only dictated vitals, for example "BP: 120/80 mmHg; Pulse rate: 78/min; Oxygen saturation: 98%; Height: 170 cm; Weight: 70 kg; BMI: 24.2 kg/m2". If height and weight are both dictated and BMI is not dictated, calculate BMI from height and weight and add it to the same line. Do not guess missing vitals.
 Move MRI, CT, EEG, NCS, ECG, scan, imaging, blood reports, lab values, and report-review content under Review of Investigations.
 
 Under Review of Investigations, arrange investigations like the main visit-note template:
@@ -2706,7 +2706,7 @@ Do not create extra headings.
 Never create a separate "Orders" heading. If the doctor dictates the word "orders", intelligently place those dictated items at the end under Prescription or Advice / Instructions.
 
 Formatting rules:
-- Vitals: use one compact line if dictated, for example "BP 120/80 mmHg; Pulse 78/min; SpO2 98%; Height 170 cm; Weight 70 kg; BMI 24.2 kg/m2". Include only dictated vitals. If height and weight are both dictated and BMI is not dictated, calculate BMI from height and weight and add it to the same line. Do not guess missing vitals.
+- Vitals: always show one compact line with these labels in this order: "BP: ; Pulse rate: ; Oxygen saturation: ; Height: ; Weight: ; BMI:". Fill only dictated vitals, for example "BP: 120/80 mmHg; Pulse rate: 78/min; Oxygen saturation: 98%; Height: 170 cm; Weight: 70 kg; BMI: 24.2 kg/m2". If height and weight are both dictated and BMI is not dictated, calculate BMI from height and weight and add it to the same line. Do not guess missing vitals.
 - Chief Complaints: each complaint on a separate line.
 - History of Present Illness: one or two concise paragraphs.
 - Past Medical or Surgical History: line by line.
@@ -3289,11 +3289,12 @@ ${context}`;
       }
       function formatAddOnReviewText(text) {
         const lines = String(text || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-        if (!lines.length) return "Vitals:";
+        const blankVitalsLine = "BP: ; Pulse rate: ; Oxygen saturation: ; Height: ; Weight: ; BMI:";
+        if (!lines.length) return `Vitals:\n${blankVitalsLine}`;
         const hasVitals = lines.some((line) => /^vitals\s*:?\s*$/i.test(line) || /^vitals\s*:/i.test(line));
         const hasReviewNote = lines.some((line) => /^review note\s*:?\s*$/i.test(line));
         const withReview = hasReviewNote ? lines : ["Review Note:", ...lines];
-        return hasVitals ? withReview.join("\n") : ["Vitals:", ...withReview].join("\n");
+        return hasVitals ? withReview.join("\n") : ["Vitals:", blankVitalsLine, ...withReview].join("\n");
       }
       function parseUnregisteredVisitOutput(text) {
         const raw = String(text || "").trim();
@@ -3681,7 +3682,7 @@ ${context}`;
       }
       function blankVisitNoteTemplateHtml(patient = {}) {
         return `<span class="visit-note-title">Visit Note</span>${doctorDraftPatientLineHtml(patient)}${plainTextToHtml(`Vitals:
-NIL
+BP: ; Pulse rate: ; Oxygen saturation: ; Height: ; Weight: ; BMI:
 
 Chief Complaints:
 NIL
