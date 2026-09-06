@@ -3836,6 +3836,7 @@ NIL`)}`;
           .replace(/\b(Vitals|Chief Complaints?|Presenting Complaints?|History of Present Illness|Past Medical or Surgical History|Allergies?|Examination Findings?|Investigations?|Review of investigations|Reports?|Blood reports?|Blood tests?|Labs|Current Medications?|Medications?|Treatment\s*\/\s*Medications|Prescription|Rx|Advice\s*\/\s*Instructions|Advice|Instructions|Follow-?up|Plan|Diagnosis|Review Note)\s*:/gi, "\n$1:")
           .split("\n")
           .map((line) => line.trim())
+          .filter((line) => !hasMalayalamText(line))
           .filter(Boolean);
       }
       function smartChartHeadingInfo(value) {
@@ -3879,7 +3880,7 @@ NIL`)}`;
         const clean = [];
         items.forEach((item) => {
           const value = cleanSummaryLine(item).replace(/\s+/g, " ").trim();
-          if (!value || isEmptyClinicalLine(value)) return;
+          if (!value || isEmptyClinicalLine(value) || hasMalayalamText(value)) return;
           const key = value.toLowerCase();
           if (seen.has(key)) return;
           seen.add(key);
