@@ -5292,7 +5292,9 @@ NIL`)}`;
           const recordKind = record.recordKind || "visit";
           const bodyHtml = recordKind === "summary"
             ? formattedTreatmentSummaryHtml(record.docs?.visit || record.noteHtml || record.note || "")
-            : timelineRecordBody(record);
+            : ["prescription", "certificate", "reply"].includes(recordKind)
+              ? timelineRecordBody(record)
+              : ensureVisitVitalsHtml(compactVisitPatientHeaderHtml(timelineRecordBody(record), patient));
           return `
             <section class="timeline-entry" id="entry-${record.id}">
               <h2>${record.source === "ambient" ? `${ambientModeLabel(recordKind)} - ` : ""}${dateTimeLabel(recordTimestamp(record))}</h2>
