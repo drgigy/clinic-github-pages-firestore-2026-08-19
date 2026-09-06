@@ -4572,10 +4572,6 @@ NIL`)}`;
             <div class="smart-chart-actions">
               <button class="primary" type="button" data-print-smart-chart="true">Print / Save PDF</button>
             </div>
-            <section class="myvoice-section">
-              <h2>My Voice Summary</h2>
-              <div class="snapshot-empty">Local summary from saved notes only. No AI generation used.</div>
-            </section>
             ${myVoiceTimelineSectionHtml("Chronological Timeline", myVoiceDatedEntries(records, ["diagnosis", "allergies", "course"]))}
             ${vitalsRows.length ? `<section class="smart-chart-section"><div class="smart-chart-graphs">${vitalsChartHtml(vitalsRows)}</div></section>` : myVoiceTimelineSectionHtml("Vitals Across Visits", [])}
             ${myVoiceTimelineSectionHtml("Investigation Timeline", myVoiceDatedEntries(records, ["investigations"]))}
