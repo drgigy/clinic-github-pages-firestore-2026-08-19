@@ -47,6 +47,7 @@
       .login-status { min-height: 20px; color: var(--muted); font-size: 13px; }
       .signed-in-user { overflow-wrap: anywhere; }
       #recordSummaryBtn, .smart-chart-button, #recordAddOnBtn { background: #dc2626 !important; color: #fff !important; box-shadow: inset 0 0 0 2px #991b1b, 0 1px 4px rgba(153, 27, 27, .22) !important; }
+      #recordMyVoiceSummaryBtn { background: var(--primary) !important; color: #fff !important; box-shadow: inset 0 0 0 2px var(--green-dark), 0 1px 4px rgba(0, 79, 51, .22) !important; }
       .app { min-height: 100vh; display: block; }
       .compact-nav { position: sticky; top: 0; z-index: 20; display: grid; grid-template-columns: minmax(180px, auto) minmax(360px, 1fr) auto; align-items: end; gap: 14px; padding: 12px 24px; background: #f4f7f8; border-bottom: 1px solid rgba(217, 228, 234, .72); }
       .nav-left { display: flex; align-items: end; gap: 8px; min-width: 0; }
@@ -432,6 +433,15 @@
       .blood-chart-number { color: #991b1b; font-weight: 900; white-space: nowrap; }
       .vitals-chart svg { height: 280px; }
       .vitals-chart .blood-chart-number { color: var(--green-dark); }
+      .myvoice-summary { display: grid; gap: 12px; }
+      .myvoice-section { border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; background: #fff; break-inside: avoid; }
+      .myvoice-section h2 { font-size: 17px; font-weight: 950; margin: 0 0 8px; }
+      .myvoice-entry { border-top: 1px solid #edf2f5; padding-top: 8px; margin-top: 8px; }
+      .myvoice-entry:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+      .myvoice-date { color: var(--muted); font-size: 13px; font-weight: 900; margin-bottom: 5px; }
+      .myvoice-entry ul { margin: 0; padding-left: 18px; display: grid; gap: 3px; }
+      .myvoice-entry li { font-size: 13px; line-height: 1.4; }
+      .myvoice-source { white-space: pre-wrap; font-size: 13px; line-height: 1.45; border: 1px dashed #d9e4ea; border-radius: 6px; padding: 8px; background: #fbfdfe; }
       .smart-result-list { display: grid; gap: 8px; }
       .smart-result-row { display: grid; grid-template-columns: 140px 150px minmax(0, 1fr) auto; gap: 12px; padding: 10px 0; border-bottom: 1px solid #edf2f5; break-inside: avoid; }
       .smart-result-date { color: var(--muted); font-size: 13px; font-weight: 900; }
@@ -1101,6 +1111,7 @@
           </div>
           <button class="secondary" type="button" id="recordAddOnBtn" data-feature="woyzNote" hidden>Add On</button>
           <button class="secondary smart-chart-button" type="button" id="recordSummaryBtn" data-feature="smartChart" style="background:#dc2626;color:#fff;box-shadow:inset 0 0 0 2px #991b1b,0 1px 4px rgba(153,27,27,.22);">Smart Chart</button>
+          <button class="secondary" type="button" id="recordMyVoiceSummaryBtn" data-feature="smartChart">Summary</button>
           <button class="secondary" type="button" id="recordDiagnosisBtn" data-feature="diagnosis">Diagnosis</button>
           <button class="secondary" type="button" id="recordCommentsBtn" data-feature="comments">Comments</button>
           <button class="secondary" type="button" id="recordSaveBtn">Save</button>
@@ -4462,6 +4473,121 @@ NIL`)}`;
           </div>
         `;
       }
+      function myVoiceSourceRecords(patient) {
+        return patientMedicalRecords(patient)
+          .filter((record) => (record.note || record.noteHtml || record.docs?.visit) && (record.recordKind || "visit") !== "summary")
+          .sort((a, b) => new Date(recordTimestamp(a)) - new Date(recordTimestamp(b)));
+      }
+      function myVoiceCleanLines(record) {
+        return smartChartLines(record).filter((line) => {
+          const cleaned = cleanSummaryLine(line);
+          return cleaned
+            && !/^visit note\s*:?\s*$/i.test(cleaned)
+            && !/^(patient\s+name|name|age|sex|uhid|id|mobile|mobile\s+number)\s*:/i.test(cleaned)
+            && !/^bp:\s*;\s*pulse rate:\s*;\s*oxygen saturation:\s*;\s*height:\s*;\s*weight:\s*;\s*bmi:\s*$/i.test(cleaned);
+        });
+      }
+      function myVoiceRecordSections(record) {
+        const sections = {
+          vitals: [],
+          allergies: [],
+          diagnosis: [],
+          course: [],
+          investigations: [],
+          medicines: [],
+          prescription: [],
+          advice: [],
+          other: []
+        };
+        let current = "";
+        myVoiceCleanLines(record).forEach((line) => {
+          const cleaned = cleanSummaryLine(line);
+          const heading = smartChartHeadingInfo(cleaned);
+          if (heading) {
+            current = heading.key;
+            if (heading.content && !isEmptyClinicalLine(heading.content)) sections[current].push(heading.content);
+            return;
+          }
+          if (isEmptyClinicalLine(cleaned)) return;
+          if (current && sections[current]) sections[current].push(cleaned);
+          else sections.other.push(cleaned);
+        });
+        return sections;
+      }
+      function myVoiceDatedEntries(records, keys) {
+        return records.map((record) => {
+          const sections = myVoiceRecordSections(record);
+          const items = keys.flatMap((key) => sections[key] || []).filter(Boolean);
+          return {
+            date: recordTimestamp(record),
+            label: dateTimeLabel(recordTimestamp(record)),
+            items
+          };
+        }).filter((entry) => entry.items.length);
+      }
+      function myVoiceTimelineSectionHtml(title, entries) {
+        return `
+          <section class="myvoice-section">
+            <h2>${escapeHtml(title)}</h2>
+            ${entries.length ? entries.map((entry) => `
+              <div class="myvoice-entry">
+                <div class="myvoice-date">${escapeHtml(entry.label)}</div>
+                <ul>${entry.items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+              </div>
+            `).join("") : `<div class="snapshot-empty">No clear saved information.</div>`}
+          </section>
+        `;
+      }
+      function myVoiceSourceEntriesHtml(records) {
+        return `
+          <section class="myvoice-section">
+            <h2>Source Entries</h2>
+            ${records.map((record) => {
+              const text = myVoiceCleanLines(record).join("\n").trim();
+              return `
+                <div class="myvoice-entry">
+                  <div class="myvoice-date">${escapeHtml(dateTimeLabel(recordTimestamp(record)))}</div>
+                  <div class="myvoice-source">${escapeHtml(text || "No clear saved information.")}</div>
+                </div>
+              `;
+            }).join("")}
+          </section>
+        `;
+      }
+      function myVoiceSummaryHtml(patient, records) {
+        const vitalsRows = smartChartVitalsRows(records);
+        const bloodSeries = smartChartBloodSeries(records);
+        return `
+          <div class="smart-chart-view myvoice-summary">
+            <div class="smart-chart-header">
+              <div>
+                <h1>${escapeHtml(patient.name || "Patient")}</h1>
+                <div class="smart-patient-meta">
+                  <span>ID: ${escapeHtml(patientDisplayId(patient))}</span>
+                  <span>Age/Sex: ${escapeHtml(patient.age || "-")} / ${escapeHtml(patient.sex || "-")}</span>
+                  <span>Mobile: ${escapeHtml(patient.mobile || "-")}</span>
+                </div>
+              </div>
+            </div>
+            <div class="smart-chart-actions">
+              <button class="primary" type="button" data-print-smart-chart="true">Print / Save PDF</button>
+            </div>
+            <section class="myvoice-section">
+              <h2>My Voice Summary</h2>
+              <div class="snapshot-empty">Local summary from saved notes only. No AI generation used.</div>
+            </section>
+            ${myVoiceTimelineSectionHtml("Chronological Timeline", myVoiceDatedEntries(records, ["diagnosis", "allergies", "course"]))}
+            ${vitalsRows.length ? `<section class="smart-chart-section"><div class="smart-chart-graphs">${vitalsChartHtml(vitalsRows)}</div></section>` : myVoiceTimelineSectionHtml("Vitals Across Visits", [])}
+            ${myVoiceTimelineSectionHtml("Investigation Timeline", myVoiceDatedEntries(records, ["investigations"]))}
+            ${bloodSeries.length ? `<section class="smart-chart-section"><div class="smart-chart-graphs">${bloodSeries.map(bloodChartHtml).join("")}</div></section>` : ""}
+            ${myVoiceTimelineSectionHtml("Medicine Timeline", myVoiceDatedEntries(records, ["medicines", "prescription"]))}
+            ${myVoiceTimelineSectionHtml("Advice / Follow-up Timeline", myVoiceDatedEntries(records, ["advice"]))}
+            ${myVoiceTimelineSectionHtml("Other Saved Details", myVoiceDatedEntries(records, ["other"]))}
+            ${myVoiceSourceEntriesHtml(records)}
+            <div class="smart-disclaimer">Local chronological arrangement only. Verify with original saved notes.</div>
+          </div>
+        `;
+      }
       function showSmartChart() {
         const patient = activeRecordPatient();
         if (!patient) return;
@@ -4482,6 +4608,32 @@ NIL`)}`;
         $("#recordVisitDate").textContent = "Smart Chart";
         $("#medicalNoteText").setAttribute("contenteditable", "false");
         $("#medicalNoteText").innerHTML = smartChartHtml(patient, records);
+        $("#recordDeleteBtn").hidden = true;
+        $("#recordDeleteBtn").title = "Delete note";
+        $("#recordDeleteBtn").setAttribute("aria-label", "Delete note");
+        $("#recordStatus").textContent = "";
+        renderPreviousRecords();
+      }
+      function showMyVoiceSummary() {
+        const patient = activeRecordPatient();
+        if (!patient) return;
+        persistCurrentRecordTab();
+        clearActiveAddOn(true);
+        const records = myVoiceSourceRecords(patient);
+        if (!records.length) {
+          alert("No saved notes found for My Voice Summary.");
+          return;
+        }
+        activeRecordView = "myvoice";
+        activeRecordId = "";
+        activeRecordDate = "";
+        activeRecordCreatedAt = "";
+        activeRecordSource = "typed";
+        activeRecordDocs = {};
+        activeRecordDirty = false;
+        $("#recordVisitDate").textContent = "My Voice Summary";
+        $("#medicalNoteText").setAttribute("contenteditable", "false");
+        $("#medicalNoteText").innerHTML = myVoiceSummaryHtml(patient, records);
         $("#recordDeleteBtn").hidden = true;
         $("#recordDeleteBtn").title = "Delete note";
         $("#recordDeleteBtn").setAttribute("aria-label", "Delete note");
@@ -4977,7 +5129,7 @@ NIL`)}`;
         const rawHtml = ["single", "draft"].includes(activeRecordView)
           ? (activeRecordDocs.visit || "No notes entered.")
           : ($("#medicalNoteText").innerHTML || "No notes entered.");
-        if (activeRecordView === "smart") {
+        if (["smart", "myvoice"].includes(activeRecordView)) {
           const container = document.createElement("div");
           container.innerHTML = rawHtml;
           container.querySelectorAll(".smart-chart-actions, .smart-delete-btn").forEach((node) => node.remove());
@@ -5316,16 +5468,17 @@ NIL`)}`;
         if (!patient) return;
         if (["single", "draft"].includes(activeRecordView)) persistCurrentRecordTab();
         const isPrescriptionPrint = activeRecordView !== "all" && activeRecordSource === "ambient" && activeAmbientMode === "prescription";
-        const metaText = activeRecordView === "smart"
+        const isSmartPrintView = ["smart", "myvoice"].includes(activeRecordView);
+        const metaText = isSmartPrintView
           ? ""
           : activeRecordView === "all"
             ? `ID: ${patientDisplayId(patient)} | Mobile: ${patient.mobile || "-"} | All entries`
             : `ID: ${patientDisplayId(patient)} | Mobile: ${patient.mobile || "-"} | ${activeRecordSource === "ambient" ? ambientModeLabel(activeAmbientMode) : "Note"}: ${dateTimeLabel(activeRecordCreatedAt)}`;
         const printContent = $("#medicalPrintContent");
-        printContent.classList.toggle("smart-print-content", activeRecordView === "smart");
+        printContent.classList.toggle("smart-print-content", isSmartPrintView);
         printContent.innerHTML = isPrescriptionPrint
           ? activeMedicalPrintBody()
-          : activeRecordView === "smart"
+          : isSmartPrintView
             ? activeMedicalPrintBody()
           : `
             <h1>${patient.name}</h1>
@@ -5334,7 +5487,7 @@ NIL`)}`;
             ${medicalPrintFooter()}
           `;
         document.body.classList.toggle("print-prescription", isPrescriptionPrint);
-        document.body.classList.toggle("print-smart-chart", activeRecordView === "smart");
+        document.body.classList.toggle("print-smart-chart", isSmartPrintView);
         document.body.classList.add("print-medical");
         window.print();
       }
@@ -6824,11 +6977,13 @@ NIL`)}`;
         if (button.id === "savePdfAccountsBtn" || button.id === "printInlineAccountsBtn") { document.body.classList.add("print-accounts"); window.print(); }
         if (button.id === "recordSaveBtn") await saveActiveMedicalRecord();
         if (button.id === "recordSaveCloseBtn") { await saveActiveMedicalRecord(); closeMedicalRecordScreen(); }
+        if (button.dataset.printSmartChart) printActiveMedicalRecord();
         if (button.dataset.recordPrint === "prescription") printPrescriptionFromVisitNote();
         if (button.dataset.recordPrint === "reply") window.printReply ? window.printReply() : printActiveMedicalRecord();
         if (button.dataset.recordPrint === "certificate") window.printCertificate ? window.printCertificate() : printActiveMedicalRecord();
         if (button.id === "recordAddOnBtn") startRecordAddOn();
         if (button.id === "recordSummaryBtn") showSmartChart();
+        if (button.id === "recordMyVoiceSummaryBtn") showMyVoiceSummary();
         if (button.id === "recordDiagnosisBtn") openRecordDiagnosisModal();
         if (button.id === "closeRecordDiagnosisBtn") closeRecordDiagnosisModal();
         if (button.id === "saveRecordDiagnosisBtn") {
