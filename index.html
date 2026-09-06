@@ -3134,6 +3134,9 @@ ${context}`;
               ? `<span class="visit-note-title">Visit Note</span>${doctorDraftPatientLineHtml(patient)}${plainTextToHtml(cleanText)}`
               : blankVisitNoteTemplateHtml(patient))
             : compactVisitPatientHeaderHtml(plainTextToHtml(cleanText), patient);
+        if (!["prescription", "certificate", "reply", "summary"].includes(activeAmbientMode)) {
+          activeRecordDocs.visit = ensureVisitVitalsHtml(activeRecordDocs.visit);
+        }
         if (draftMedicalRecord && activeRecordId === draftMedicalRecord.id && activeRecordView === "draft") {
           draftMedicalRecord.note = text;
           draftMedicalRecord.noteHtml = activeRecordDocs.visit;
@@ -3407,6 +3410,9 @@ ${context}`;
               ? `<span class="visit-note-title">Visit Note</span>${doctorDraftPatientLineHtml(patient)}${plainTextToHtml(note)}`
               : blankVisitNoteTemplateHtml(patient))
             : compactVisitPatientHeaderHtml(plainTextToHtml(note), patient);
+          if (!["prescription", "certificate", "reply", "summary"].includes(processingMode)) {
+            activeRecordDocs.visit = ensureVisitVitalsHtml(activeRecordDocs.visit);
+          }
           if (draftMedicalRecord) updateDraftContent(draftMedicalRecord, note, processingMode);
           activeRecordDirty = true;
           if (draftMedicalRecord) {
@@ -3724,6 +3730,14 @@ ${context}`;
         const identity = { ...(patient || {}), ...collectPatientIdentityFromNoteText(lines.slice(titleIndex + 1, endIndex).join("\n")) };
         const remaining = lines.slice(endIndex).join("\n").trim();
         return `<span class="visit-note-title">Visit Note</span>${doctorDraftPatientLineHtml(identity)}${remaining ? plainTextToHtml(remaining) : ""}`;
+      }
+      function ensureVisitVitalsHtml(value) {
+        const html = String(value || "");
+        if (/^vitals\s*:/im.test(htmlToPlainText(html))) return html;
+        const vitalsHtml = plainTextToHtml("Vitals:\nBP: ; Pulse rate: ; Oxygen saturation: ; Height: ; Weight: ; BMI:\n\n");
+        if (html.includes('class="draft-patient-line"')) return html.replace(/(<div class="draft-patient-line">[\s\S]*?<\/div>)/, `$1${vitalsHtml}`);
+        if (html.includes('class="visit-note-title"')) return html.replace(/(<span class="visit-note-title">[\s\S]*?<\/span>)/, `$1${vitalsHtml}`);
+        return `${vitalsHtml}${html}`;
       }
       function blankVisitNoteTemplateHtml(patient = {}) {
         return `<span class="visit-note-title">Visit Note</span>${doctorDraftPatientLineHtml(patient)}${plainTextToHtml(`Vitals:
@@ -5346,6 +5360,10 @@ NIL`)}`;
         }
         if (!activeRecordId) return;
         persistCurrentRecordTab();
+        if (!["prescription", "certificate", "reply", "summary"].includes(activeAmbientMode)) {
+          activeRecordDocs.visit = ensureVisitVitalsHtml(compactVisitPatientHeaderHtml(activeRecordDocs.visit || $("#medicalNoteText").innerHTML, patient));
+          $("#medicalNoteText").innerHTML = activeRecordDocs.visit;
+        }
         applyRecordPatientIdentityFromNote(patient);
         updateRecordPatientHeader(patient);
         const details = collectRecordDetails();
@@ -5469,6 +5487,7 @@ NIL`)}`;
         else if (!["prescription", "certificate", "reply"].includes(activeAmbientMode)) activeRecordDocs.visit = boldVisitNoteHeadingsHtml(activeRecordDocs.visit);
         if (!["prescription", "certificate", "reply", "summary"].includes(activeAmbientMode)) {
           activeRecordDocs.visit = compactVisitPatientHeaderHtml(activeRecordDocs.visit, patient);
+          activeRecordDocs.visit = ensureVisitVitalsHtml(activeRecordDocs.visit);
         }
         activeRecordType = "visit";
         $("#medicalNoteText").setAttribute("contenteditable", "true");
