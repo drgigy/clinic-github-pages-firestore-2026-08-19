@@ -335,9 +335,9 @@
       .draft-patient-line span { white-space: nowrap; }
       .draft-patient-line strong { font-weight: 800; color: var(--ink); }
       .draft-patient-line [contenteditable="true"] { display: inline-block; min-width: 36px; max-width: 220px; padding: 0 2px; border-bottom: 1px dotted transparent; outline: none; font-weight: 500; color: var(--ink); vertical-align: baseline; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #recordDraftName { min-width: 120px; max-width: 360px; }
       .draft-patient-line [contenteditable="true"]:focus { border-bottom-color: var(--primary); background: #eefaf4; }
       .draft-patient-line [contenteditable="true"]:empty::before { content: attr(data-placeholder); color: #8997a8; font-weight: 500; }
-      #recordDraftName { min-width: 120px; }
       #recordDraftMobile { min-width: 92px; }
       #recordDraftPatientId { min-width: 92px; }
       .medical-textarea .visit-note-title { display: block; margin: 0 0 14px; font-family: Georgia, "Times New Roman", serif; font-size: 28px; line-height: 1.15; font-weight: 800; }
@@ -3133,7 +3133,7 @@ ${context}`;
             ? (cleanText
               ? `<span class="visit-note-title">Visit Note</span>${doctorDraftPatientLineHtml(patient)}${plainTextToHtml(cleanText)}`
               : blankVisitNoteTemplateHtml(patient))
-            : plainTextToHtml(cleanText);
+            : compactVisitPatientHeaderHtml(plainTextToHtml(cleanText), patient);
         if (draftMedicalRecord && activeRecordId === draftMedicalRecord.id && activeRecordView === "draft") {
           draftMedicalRecord.note = text;
           draftMedicalRecord.noteHtml = activeRecordDocs.visit;
@@ -3406,7 +3406,7 @@ ${context}`;
             ? (note.trim()
               ? `<span class="visit-note-title">Visit Note</span>${doctorDraftPatientLineHtml(patient)}${plainTextToHtml(note)}`
               : blankVisitNoteTemplateHtml(patient))
-            : plainTextToHtml(note);
+            : compactVisitPatientHeaderHtml(plainTextToHtml(note), patient);
           if (draftMedicalRecord) updateDraftContent(draftMedicalRecord, note, processingMode);
           activeRecordDirty = true;
           if (draftMedicalRecord) {
@@ -3712,6 +3712,18 @@ ${context}`;
           <span><strong>ID:</strong> <span id="recordDraftPatientId" contenteditable="true" data-placeholder="Auto if empty">${escapeHtml(patient.patientId || "")}</span></span>
           <span><strong>Mobile:</strong> <span id="recordDraftMobile" contenteditable="true" data-placeholder="Mobile">${escapeHtml(patient.mobile || "")}</span></span>
         </div>`;
+      }
+      function compactVisitPatientHeaderHtml(value, patient = activeRecordPatient()) {
+        const text = htmlToPlainText(value);
+        const lines = text.split(/\r?\n/).map((line) => line.trim());
+        const titleIndex = lines.findIndex((line) => /^visit note\s*:?\s*$/i.test(line));
+        if (titleIndex === -1) return value;
+        let endIndex = titleIndex + 1;
+        while (endIndex < lines.length && /^(patient\s+name|name|age|sex|uhid|id|mobile|mobile\s+number)\s*:/i.test(lines[endIndex])) endIndex += 1;
+        if (endIndex === titleIndex + 1) return value;
+        const identity = { ...(patient || {}), ...collectPatientIdentityFromNoteText(lines.slice(titleIndex + 1, endIndex).join("\n")) };
+        const remaining = lines.slice(endIndex).join("\n").trim();
+        return `<span class="visit-note-title">Visit Note</span>${doctorDraftPatientLineHtml(identity)}${remaining ? plainTextToHtml(remaining) : ""}`;
       }
       function blankVisitNoteTemplateHtml(patient = {}) {
         return `<span class="visit-note-title">Visit Note</span>${doctorDraftPatientLineHtml(patient)}${plainTextToHtml(`Vitals:
@@ -5455,6 +5467,9 @@ NIL`)}`;
         };
         if (activeAmbientMode === "summary") activeRecordDocs.visit = formattedTreatmentSummaryHtml(activeRecordDocs.visit);
         else if (!["prescription", "certificate", "reply"].includes(activeAmbientMode)) activeRecordDocs.visit = boldVisitNoteHeadingsHtml(activeRecordDocs.visit);
+        if (!["prescription", "certificate", "reply", "summary"].includes(activeAmbientMode)) {
+          activeRecordDocs.visit = compactVisitPatientHeaderHtml(activeRecordDocs.visit, patient);
+        }
         activeRecordType = "visit";
         $("#medicalNoteText").setAttribute("contenteditable", "true");
         $("#medicalNoteText").innerHTML = activeRecordDocs.visit;
