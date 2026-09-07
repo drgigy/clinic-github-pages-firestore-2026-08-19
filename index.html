@@ -99,7 +99,7 @@
       }
       .choice.noshow { background: var(--danger); color: var(--danger-ink); }
       .queue-overview { display: grid; grid-template-columns: minmax(190px, auto) minmax(0, 1fr); gap: 10px; align-items: center; margin-bottom: 12px; min-width: 0; }
-      .queue-overview.search-visible { grid-template-columns: auto minmax(300px, .34fr) minmax(0, 1fr); }
+      .queue-overview.search-visible { grid-template-columns: auto minmax(320px, 420px) minmax(0, 1fr); }
       .queue-overview[hidden] { display: none !important; }
       .queue-overview .doctor-search-panel { margin: 0; min-height: 0; align-content: center; padding: 8px; }
       .queue-overview .doctor-search-panel label { display: none; }
@@ -110,7 +110,7 @@
       .doctor-mobile-add { display: none; }
       .queue-overview.search-visible .doctor-mobile-add { display: inline-flex; }
       .stats { display: grid; grid-template-columns: repeat(6, minmax(86px, 1fr)); gap: 8px; margin-bottom: 18px; }
-      .stats.doctor-stats { grid-template-columns: repeat(5, minmax(86px, 1fr)); }
+      .stats.doctor-stats { grid-template-columns: repeat(5, minmax(0, 1fr)); }
       .stat, .section { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
       .stat { min-height: 50px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
       .stat span { color: var(--muted); font-size: 13px; font-weight: 850; line-height: 1.15; }
@@ -672,20 +672,20 @@
       }
       @media (min-width: 761px) and (max-width: 1500px) {
         .queue-overview.search-visible {
-          grid-template-columns: 132px minmax(250px, 330px) minmax(0, 1fr);
+          grid-template-columns: 150px minmax(330px, 370px) minmax(0, 1fr);
           justify-content: stretch;
           align-items: center;
           gap: 8px;
         }
-        .queue-overview.search-visible .doctor-mobile-add { display: none !important; }
+        .queue-overview.search-visible .doctor-mobile-add { display: inline-flex; }
         .queue-overview.search-visible .queue-add-patient {
-          width: 132px;
-          min-width: 132px;
-          height: 36px;
-          min-height: 36px;
-          max-height: 36px;
-          padding: 0 10px;
-          font-size: 13px;
+          width: 100%;
+          min-width: 0;
+          height: 38px;
+          min-height: 38px;
+          max-height: 38px;
+          padding: 0 12px;
+          font-size: 14px;
         }
         .queue-overview.search-visible .doctor-search-panel {
           width: 100%;
@@ -694,36 +694,36 @@
           background: transparent;
         }
         .queue-overview.search-visible .doctor-search-row {
-          gap: 0;
-          border: 1px solid var(--line);
-          border-radius: var(--radius);
-          background: #fff;
-          overflow: hidden;
+          gap: 6px;
+          align-items: center;
         }
         .queue-overview.search-visible .doctor-search-row textarea {
-          height: 36px;
-          min-height: 36px;
-          border: 0;
-          border-radius: 0;
+          height: 38px;
+          min-height: 38px;
+          border: 1px solid var(--line);
+          border-radius: var(--radius);
           padding: 8px 10px;
-          font-size: 13px;
+          font-size: 14px;
           line-height: 20px;
         }
         .queue-overview.search-visible .doctor-search-row .secondary {
-          width: 72px;
-          min-width: 72px;
-          min-height: 36px;
-          border-radius: 0;
-          border-left: 1px solid var(--line);
+          width: 86px;
+          min-width: 86px;
+          min-height: 38px;
           padding: 0 8px;
-          font-size: 13px;
+          font-size: 14px;
         }
         .queue-overview.search-visible .stats {
-          grid-template-columns: repeat(5, minmax(92px, 1fr));
-          gap: 6px;
+          grid-template-columns: repeat(5, minmax(0, 1fr));
+          gap: 7px;
         }
-        .queue-overview.search-visible .stat { min-height: 38px; padding: 6px 8px; gap: 6px; }
-        .queue-overview.search-visible .stat span { font-size: 11px; line-height: 1.05; }
+        .queue-overview.search-visible .stat {
+          min-height: 40px;
+          padding: 6px 8px;
+          gap: 5px;
+          justify-content: center;
+        }
+        .queue-overview.search-visible .stat span { font-size: 10.5px; line-height: 1.05; }
         .queue-overview.search-visible .stat strong { font-size: 20px; }
       }
       @media (max-width: 760px) {
