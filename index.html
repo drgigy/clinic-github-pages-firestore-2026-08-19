@@ -246,6 +246,7 @@
       .record-top { position: sticky; top: 0; z-index: 2; background: #fff; border-bottom: 1px solid var(--line); padding: 14px 18px; display: grid; grid-template-columns: minmax(260px, 1fr) auto; gap: 14px; align-items: start; }
       .record-patient h1 { font-size: 20px; margin-bottom: 4px; font-weight: 900; }
       .record-meta { display: flex; flex-wrap: wrap; gap: 8px 14px; color: var(--muted); font-size: 13px; font-weight: 850; }
+      #recordVisitDate { display: none; }
       .record-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
       .record-delete-button { background: var(--danger); color: var(--danger-ink); }
       .print-menu { position: relative; display: inline-flex; }
@@ -1124,6 +1125,13 @@
           </div>
         </div>
           <div class="record-actions">
+          <div class="print-menu" id="recordTemplateMenu" hidden>
+            <button class="secondary" type="button" id="recordTemplateMenuBtn" aria-haspopup="true">Templates</button>
+            <div class="print-menu-panel" role="menu" aria-label="Templates">
+              <button class="secondary" type="button" data-record-template="reply" data-feature="printReply" role="menuitem">Reply Letter</button>
+              <button class="secondary" type="button" data-record-template="certificate" data-feature="printCertificate" role="menuitem">Medical Certificate</button>
+            </div>
+          </div>
           <div class="print-menu">
             <button class="secondary" type="button" id="recordPrintMenuBtn" aria-haspopup="true">Print</button>
             <div class="print-menu-panel" role="menu" aria-label="Print options">
@@ -2713,6 +2721,7 @@ Do not remove anything that was dictated.
 Return plain text only. Do not return JSON. Do not use markdown fences.
 
 Use a simple certificate style. Include patient details only if dictated or provided in the patient context.
+Start the document with the heading "Medical Certificate".
 If dates, rest period, diagnosis, fitness, or purpose are dictated, include them exactly.
 If a detail is not dictated, omit it. Do not write "Not dictated".
 
@@ -2730,6 +2739,7 @@ Do not remove anything that was dictated.
 Return plain text only. Do not return JSON. Do not use markdown fences.
 
 Use a polite professional letter style.
+Start the document with the heading "Reply Letter".
 Keep the original meaning exactly.
 If a detail is not dictated, omit it. Do not write "Not dictated".
 
@@ -2984,6 +2994,7 @@ ${context}`;
       function setAmbientButtons() {
         renderAmbientDock();
         updateAddOnButtonVisibility();
+        updateTemplateButtonVisibility();
         const starts = document.querySelectorAll("[data-ambient-start]");
         const pauses = document.querySelectorAll("[data-ambient-pause]");
         const stops = document.querySelectorAll("[data-ambient-stop]");
@@ -3017,6 +3028,11 @@ ${context}`;
         const isSavedVisit = activeRecordView === "single" && Boolean(activeRecordId) && activeAmbientMode === "visit";
         button.hidden = !isSavedVisit;
         button.disabled = Boolean(activeAddOn && ["recording", "paused", "processing"].includes(ambientState));
+      }
+      function updateTemplateButtonVisibility() {
+        const menu = $("#recordTemplateMenu");
+        if (!menu) return;
+        menu.hidden = activeRecordView !== "all";
       }
       function clearActiveAddOn(resetAudio = false) {
         if (!activeAddOn) return;
@@ -3161,7 +3177,7 @@ ${context}`;
       function showAmbientResult(text = "", dirty = true) {
         ambientState = "ready";
         const patient = activeRecordPatient();
-        const cleanText = String(text || "").trim();
+        const cleanText = ensureDocumentTitleText(String(text || "").trim(), activeAmbientMode);
         activeRecordDocs.visit = activeAmbientMode === "summary"
           ? formattedTreatmentSummaryHtml(cleanText)
           : isPendingDoctorPatient(patient) && activeAmbientMode === "visit"
@@ -3174,7 +3190,7 @@ ${context}`;
           activeRecordDocs.visit = stripDuplicateEmptyVitalsHtml(activeRecordDocs.visit);
         }
         if (draftMedicalRecord && activeRecordId === draftMedicalRecord.id && activeRecordView === "draft") {
-          draftMedicalRecord.note = text;
+          draftMedicalRecord.note = cleanText;
           draftMedicalRecord.noteHtml = activeRecordDocs.visit;
           draftMedicalRecord.docs = { visit: activeRecordDocs.visit };
           draftMedicalRecord.recordKind = activeAmbientMode;
@@ -3251,7 +3267,7 @@ ${context}`;
           updateAmbientCountdown();
           setAmbientButtons();
           startAmbientWave(ambientStream);
-          if (activeRecordView !== "all" && !activeAddOn && !isPendingDoctorPatient(activeRecordPatient())) renderAllMedicalEntries();
+          if (activeRecordView !== "all" && !activeAddOn && !isPendingDoctorPatient(activeRecordPatient()) && !["certificate", "reply"].includes(activeAmbientMode)) renderAllMedicalEntries();
         } catch (error) {
           console.error("Ambient recording failed", error);
           stopAmbientTracks({ releaseMic: true });
@@ -3351,8 +3367,9 @@ ${context}`;
         return text;
       }
       function updateDraftContent(draft, text, mode) {
-        const noteHtml = plainTextToHtml(text);
-        draft.note = text;
+        const normalizedText = ensureDocumentTitleText(text, mode);
+        const noteHtml = plainTextToHtml(normalizedText);
+        draft.note = normalizedText;
         draft.noteHtml = noteHtml;
         draft.docs = { visit: noteHtml };
         draft.recordKind = mode;
@@ -3413,6 +3430,7 @@ ${context}`;
           const processingMode = activeAmbientMode;
           const audioBase64 = await blobToBase64(ambientAudioBlob);
           let note = await requestAmbientAuthorizationNote(apiKey, patient, processingMode, audioBase64, ambientAudioBlob.type);
+          note = ensureDocumentTitleText(note, processingMode);
           if (activeAddOn) {
             const reviewText = formatAddOnReviewText(note);
             const reviewDraft = draftRecordById(activeAddOn.draftId) || draftMedicalRecord;
@@ -3835,6 +3853,104 @@ NIL
 
 Advice / Instructions:
 NIL`)}`;
+      }
+      function documentTemplateText(patient = {}, mode = "reply") {
+        if (mode === "certificate") {
+          return `Medical Certificate
+
+Patient Name: ${patient.name || ""}
+ID: ${patientDisplayId(patient) || ""}
+Mobile: ${patient.mobile || ""}
+Date: ${dateLabel(localDateKey())}
+
+This is to certify that
+
+Diagnosis / Clinical Details:
+
+Advice / Rest / Fitness:
+
+Purpose:
+`;
+        }
+        return `Reply Letter
+
+Patient Name: ${patient.name || ""}
+ID: ${patientDisplayId(patient) || ""}
+Mobile: ${patient.mobile || ""}
+Date: ${dateLabel(localDateKey())}
+
+To:
+
+Dear Doctor,
+
+Thank you for referring / reviewing the above patient.
+
+Clinical Summary:
+
+Review of Investigations:
+
+Diagnosis:
+
+Treatment / Advice:
+
+Yours sincerely,
+`;
+      }
+      function documentTitleForMode(mode = "") {
+        if (mode === "certificate") return "Medical Certificate";
+        if (mode === "reply") return "Reply Letter";
+        return "";
+      }
+      function ensureDocumentTitleText(text = "", mode = "") {
+        const title = documentTitleForMode(mode);
+        const value = String(text || "").trim();
+        if (!title || !value) return value;
+        const firstLine = value.split(/\r?\n/).find((line) => line.trim()) || "";
+        return firstLine.trim().toLowerCase() === title.toLowerCase() ? value : `${title}\n\n${value}`;
+      }
+      function startDocumentTemplateDraft(mode = "reply") {
+        const patient = activeRecordPatient();
+        if (!patient || !["reply", "certificate"].includes(mode)) return;
+        clearActiveAddOn(true);
+        captureActiveDraft();
+        const existingAmbientDraft = patientDraftRecords(patient).find((draft) => draft.source === "ambient");
+        if (existingAmbientDraft && existingAmbientDraft.id !== activeRecordId) {
+          openDraftMedicalEntry(existingAmbientDraft.id);
+          $("#recordStatus").textContent = `${ambientModeLabel(existingAmbientDraft.recordKind || "visit")} draft is active. Save or discard it before starting another WOYZ draft.`;
+          return;
+        }
+        const createdAt = new Date().toISOString();
+        const templateHtml = plainTextToHtml(documentTemplateText(patient, mode));
+        const draft = createDraftMedicalRecord(patient, "ambient", mode, createdAt);
+        draft.note = htmlToPlainText(templateHtml);
+        draft.noteHtml = templateHtml;
+        draft.docs = { visit: templateHtml };
+        draftMedicalRecord = draft;
+        activeRecordView = "draft";
+        activeRecordId = draft.id;
+        activeRecordDate = draft.date;
+        activeRecordCreatedAt = createdAt;
+        activeRecordSource = "ambient";
+        activeAmbientMode = mode;
+        activeRecordType = "visit";
+        activeRecordDocs = { visit: templateHtml };
+        ambientChunks = [];
+        ambientAudioBlob = null;
+        ambientRemainingMs = 5 * 60 * 1000;
+        ambientState = "idle";
+        ambientStopShouldProcess = false;
+        ambientFloatPosition = null;
+        $("#medicalNoteText").setAttribute("contenteditable", "true");
+        $("#medicalNoteText").innerHTML = templateHtml;
+        $("#recordDeleteBtn").hidden = false;
+        $("#recordDeleteBtn").title = "Discard draft";
+        $("#recordDeleteBtn").setAttribute("aria-label", "Discard draft");
+        $("#recordStatus").textContent = `${ambientModeLabel(mode)} draft. Press Space or mic to record.`;
+        activeRecordDirty = true;
+        renderPreviousRecords();
+        setAmbientButtons();
+        setAmbientStatus(`${ambientModeLabel(mode)} ready. Press Space or mic to record.`);
+        $("#medicalNoteText")?.focus();
       }
       function htmlToPlainText(value) {
         const container = document.createElement("div");
@@ -7093,6 +7209,7 @@ NIL`)}`;
         }
         if (button.dataset.newRecord && featureEnabled("typedNote")) createNewMedicalEntry();
         if (button.dataset.ambientRecord && featureEnabled("woyzNote")) createNewMedicalEntry("ambient");
+        if (button.dataset.recordTemplate && featureEnabled("woyzNote")) startDocumentTemplateDraft(button.dataset.recordTemplate);
         if (button.dataset.openDraftRecord) openDraftMedicalEntry(button.dataset.openDraftRecord);
         if (button.dataset.openRecord) {
           await openMedicalRecord(activeRecordPatientId, button.dataset.openRecord);
