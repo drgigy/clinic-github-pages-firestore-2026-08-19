@@ -415,6 +415,9 @@
       .smart-chart-header h1 { font-size: 20px; font-weight: 950; margin: 0; }
       .smart-chart-header p { color: var(--muted); font-size: 13px; font-weight: 750; }
       .smart-patient-meta { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 5px; color: #334454; font-size: 13px; font-weight: 850; }
+      .smart-patient-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 5px; }
+      .smart-patient-line .smart-patient-meta { margin-top: 0; }
+      .smart-patient-line .primary { min-height: 34px; padding: 0 14px; font-size: 13px; white-space: nowrap; }
       .smart-chart-actions { display: flex; justify-content: flex-end; gap: 8px; }
       .smart-chart-section { display: grid; gap: 8px; break-inside: avoid; }
       .smart-chart-section h3 { font-size: 16px; font-weight: 900; padding-bottom: 5px; border-bottom: 1px solid var(--line); }
@@ -478,6 +481,50 @@
       .summary-section ul { margin: 0 0 0 20px; padding: 0; }
       .summary-section li { margin: 2px 0; }
       .medical-print-content { display: none; }
+      .print-preview-modal { position: fixed; inset: 0; z-index: 70; display: none; background: rgba(9, 22, 31, .62); padding: 18px; overflow: auto; }
+      .print-preview-modal.open { display: block; }
+      .print-preview-toolbar { position: sticky; top: 0; z-index: 2; display: flex; justify-content: flex-end; gap: 8px; max-width: 230mm; margin: 0 auto 12px; }
+      .print-preview-sheet { width: 210mm; min-height: 297mm; margin: 0 auto 24px; background: #fff; color: #111; box-shadow: 0 18px 50px rgba(0, 0, 0, .28); overflow: hidden; }
+      .print-preview-sheet .medical-print-content { display: block; box-sizing: border-box; width: 210mm; max-width: 210mm; min-height: 297mm; margin: 0 auto; font-family: Arial, sans-serif; color: #111; padding: 2in 1in 1in; }
+      .print-preview-sheet .medical-print-content.smart-print-content { width: 100%; max-width: none; min-height: 0; padding: 7mm 7mm 9mm !important; }
+      .print-preview-sheet .medical-print-content h1 { font-size: 22px; font-weight: 900 !important; margin: 0 0 8px; }
+      .print-preview-sheet .medical-print-content .meta { color: #444; margin-bottom: 18px; }
+      .print-preview-sheet .medical-print-content pre { white-space: pre-wrap; font: 14px/1.5 Arial, sans-serif; border-top: 1px solid #ccc; padding-top: 14px; }
+      .print-preview-sheet .prescription-sheet { min-height: 297mm; background: #fff; color: #111; overflow: hidden; }
+      .print-preview-sheet .prescription-banner { min-height: 26mm; background: #e9eef2; color: #111; margin-bottom: 5mm; padding: 7mm 10mm; box-sizing: border-box; display: flex; align-items: center; }
+      .print-preview-sheet .prescription-content { margin: 0 10mm 8mm; }
+      .print-preview-sheet .prescription-banner .medical-signature { margin: 0; font-size: 12px; line-height: 1.25; }
+      .print-preview-sheet .prescription-banner .medical-signature strong { font-size: 19px; font-weight: 900 !important; }
+      .print-preview-sheet .prescription-patient-plain { margin-bottom: 5mm; }
+      .print-preview-sheet .prescription-patient-plain h1 { color: #111; font-size: 19px; font-weight: 900 !important; margin: 0 0 2mm; }
+      .print-preview-sheet .prescription-patient-meta { color: #222; font-size: 11px; line-height: 1.3; }
+      .print-preview-sheet .prescription-rx-title { color: #15496f; font-size: 14px; font-weight: 900; margin: 0 0 4mm; }
+      .print-preview-sheet .prescription-list { display: flex; flex-direction: column; gap: 3.4mm; margin: 0 0 5mm; }
+      .print-preview-sheet .prescription-item { display: grid; grid-template-columns: 28px 1fr; column-gap: 10px; break-inside: avoid; }
+      .print-preview-sheet .prescription-number { font-weight: 900; color: #111; line-height: 1.3; }
+      .print-preview-sheet .prescription-medicine { font-size: 13px; font-weight: 900; line-height: 1.3; margin-bottom: .8mm; }
+      .print-preview-sheet .prescription-line { font-size: 12px; line-height: 1.32; margin: 0 0 .6mm; }
+      .print-preview-sheet .prescription-malayalam { font-size: 11px; line-height: 1.35; margin: .5mm 0 0; }
+      .print-preview-sheet .prescription-instructions h2 { color: #111; font-size: 14px; font-weight: 900; margin: 0 0 7px; text-transform: uppercase; }
+      .print-preview-sheet .prescription-instruction-row { display: grid; grid-template-columns: 20px 1fr; gap: 8px; margin: 0 0 7px; font-size: 12px; line-height: 1.25; }
+      .print-preview-sheet .prescription-instruction-row strong { color: #111; }
+      .print-preview-sheet .prescription-alert { margin-top: 6mm; border-top: 1px solid #bbb; padding-top: 3mm; font-size: 10px; line-height: 1.25; color: #111; }
+      .print-preview-sheet .prescription-signature { margin: 24mm 0 0 0; font-size: 10px; line-height: 1.25; }
+      .print-preview-sheet .letter-print { font-size: 14px; line-height: 1.45; }
+      .print-preview-sheet .letter-print .doctor-header { background: #eef2f4; padding: 18px 24px; margin: -2in -1in 24px; }
+      .print-preview-sheet .letter-print .doctor-header strong { display: block; font-size: 22px; margin-bottom: 4px; }
+      .print-preview-sheet .letter-print .patient-name { font-size: 20px; font-weight: 800 !important; margin: 0 0 6px; }
+      .print-preview-sheet .letter-print .doc-title { text-align: center; font-size: 18px; font-weight: 800 !important; text-decoration: underline; margin: 10px 0 24px; }
+      .print-preview-sheet .letter-print .body { min-height: 360px; }
+      .print-preview-sheet .letter-print .body p { margin: 0 0 12px; }
+      .print-preview-sheet .letter-print .signature { margin-top: 48px; font-weight: 700; }
+      .print-preview-sheet .letter-print .signature span { display: block; font-weight: 400; }
+      .print-preview-sheet .smart-chart-actions,
+      .print-preview-sheet .smart-delete-btn { display: none; }
+      .print-preview-sheet .smart-editable { outline: 0; padding: 0; }
+      .print-preview-sheet .smart-chart-view { max-width: none; font-size: 12px; }
+      .print-preview-sheet .smart-chart-section,
+      .print-preview-sheet .blood-chart { break-inside: avoid; page-break-inside: avoid; }
       .medical-disclaimer { margin-top: 36px; padding-top: 12px; border-top: 1px solid #bbb; color: #555; font-size: 11px; line-height: 1.45; }
       .medical-signature { margin-top: 42px; color: #111; font-size: 14px; line-height: 1.45; white-space: pre-wrap; }
       .medical-signature b, .medical-signature strong { font-weight: 900 !important; }
@@ -1104,7 +1151,7 @@
                 <input id="neuroAnalysisFromMonth" type="month" aria-label="Analysis from month" hidden />
                 <input id="neuroAnalysisToMonth" type="month" aria-label="Analysis to month" hidden />
                 <input id="neuroAnalysisYear" type="number" min="2000" max="2100" aria-label="Analysis year" hidden />
-                <button class="secondary" type="button" id="printNeuroBtn">Print / Save PDF</button>
+                <button class="secondary" type="button" id="printNeuroBtn">Preview</button>
                 <button class="secondary" type="button" id="toggleNeuroAnalysisBtn">Show analysis</button>
               </div>
             </div>
@@ -1133,8 +1180,8 @@
             </div>
           </div>
           <div class="print-menu">
-            <button class="secondary" type="button" id="recordPrintMenuBtn" aria-haspopup="true">Print</button>
-            <div class="print-menu-panel" role="menu" aria-label="Print options">
+            <button class="secondary" type="button" id="recordPrintMenuBtn" aria-haspopup="true">Preview</button>
+            <div class="print-menu-panel" role="menu" aria-label="Preview options">
               <button class="secondary" type="button" data-record-print="prescription" data-feature="printPrescription" role="menuitem">Prescription</button>
               <button class="secondary" type="button" data-record-print="reply" data-feature="printReply" role="menuitem">Reply</button>
               <button class="secondary" type="button" data-record-print="certificate" data-feature="printCertificate" role="menuitem">Certificate</button>
@@ -1195,6 +1242,12 @@
       </div>
     </section>
     <div class="medical-print-content" id="medicalPrintContent"></div>
+    <section class="print-preview-modal" id="printPreviewModal" aria-hidden="true">
+      <div class="print-preview-toolbar">
+        <button class="secondary" type="button" id="closePrintPreviewBtn">Close</button>
+      </div>
+      <div class="print-preview-sheet" id="printPreviewSheet"></div>
+    </section>
 
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
@@ -4727,15 +4780,15 @@ Yours sincerely,
             <div class="smart-chart-header">
               <div>
                 <h1>${escapeHtml(patient.name || "Patient")}</h1>
-                <div class="smart-patient-meta">
-                  <span>ID: ${escapeHtml(patientDisplayId(patient))}</span>
-                  <span>Age/Sex: ${escapeHtml(patient.age || "-")} / ${escapeHtml(patient.sex || "-")}</span>
-                  <span>Mobile: ${escapeHtml(patient.mobile || "-")}</span>
+                <div class="smart-patient-line">
+                  <div class="smart-patient-meta">
+                    <span>ID: ${escapeHtml(patientDisplayId(patient))}</span>
+                    <span>Age/Sex: ${escapeHtml(patient.age || "-")} / ${escapeHtml(patient.sex || "-")}</span>
+                    <span>Mobile: ${escapeHtml(patient.mobile || "-")}</span>
+                  </div>
+                  <button class="primary" type="button" data-print-smart-chart="true">Preview</button>
                 </div>
               </div>
-            </div>
-            <div class="smart-chart-actions">
-              <button class="primary" type="button" data-print-smart-chart="true">Print / Save PDF</button>
             </div>
             ${patientSnapshotHtml(patient, records)}
             ${vitalsRows.length ? `
@@ -4846,16 +4899,16 @@ Yours sincerely,
             <div class="smart-chart-header">
               <div class="smart-chart-title-row">
                 <h2>Health Summary</h2>
-                <div class="smart-chart-actions">
-                  <button class="primary" type="button" data-print-smart-chart="true">Print / Save PDF</button>
-                </div>
               </div>
               <div>
                 <h1>${escapeHtml(patient.name || "Patient")}</h1>
-                <div class="smart-patient-meta">
-                  <span>ID: ${escapeHtml(patientDisplayId(patient))}</span>
-                  <span>Age/Sex: ${escapeHtml(patient.age || "-")} / ${escapeHtml(patient.sex || "-")}</span>
-                  <span>Mobile: ${escapeHtml(patient.mobile || "-")}</span>
+                <div class="smart-patient-line">
+                  <div class="smart-patient-meta">
+                    <span>ID: ${escapeHtml(patientDisplayId(patient))}</span>
+                    <span>Age/Sex: ${escapeHtml(patient.age || "-")} / ${escapeHtml(patient.sex || "-")}</span>
+                    <span>Mobile: ${escapeHtml(patient.mobile || "-")}</span>
+                  </div>
+                  <button class="primary" type="button" data-print-smart-chart="true">Preview</button>
                 </div>
               </div>
             </div>
@@ -5518,18 +5571,37 @@ Yours sincerely,
         }
         $("#medicalPrintContent").innerHTML = formatPrescriptionPrintHtml(prescriptionHtml, patient);
         document.body.classList.add("print-medical", "print-prescription");
-        window.print();
-        schedulePrintCleanup();
+        showPrintPreview();
       }
       function cleanupPrintState() {
         document.body.classList.remove("print-accounts", "print-medical", "print-prescription", "print-smart-chart");
         $("#medicalPrintContent")?.classList.remove("smart-print-content");
+      }
+      function showPrintPreview() {
+        const modal = $("#printPreviewModal");
+        const sheet = $("#printPreviewSheet");
+        const content = $("#medicalPrintContent");
+        if (!modal || !sheet || !content) return;
+        sheet.innerHTML = "";
+        const previewContent = content.cloneNode(true);
+        previewContent.removeAttribute("id");
+        sheet.appendChild(previewContent);
+        modal.classList.add("open");
+        modal.setAttribute("aria-hidden", "false");
+        cleanupPrintState();
+      }
+      function closePrintPreview() {
+        $("#printPreviewModal")?.classList.remove("open");
+        $("#printPreviewModal")?.setAttribute("aria-hidden", "true");
+        const sheet = $("#printPreviewSheet");
+        if (sheet) sheet.innerHTML = "";
       }
       function schedulePrintCleanup() {
         window.setTimeout(cleanupPrintState, 1200);
       }
       window.woyzCleanupPrintState = cleanupPrintState;
       window.woyzSchedulePrintCleanup = schedulePrintCleanup;
+      window.woyzShowPrintPreview = showPrintPreview;
       function openAddPatientModal() {
         renderCommentSelects();
         renderDiagnosisSelects();
@@ -5785,8 +5857,7 @@ Yours sincerely,
         document.body.classList.toggle("print-prescription", isPrescriptionPrint);
         document.body.classList.toggle("print-smart-chart", isSmartPrintView);
         document.body.classList.add("print-medical");
-        window.print();
-        schedulePrintCleanup();
+        showPrintPreview();
       }
       async function saveActiveMedicalRecord() {
         const patient = activeRecordPatient();
@@ -7282,6 +7353,7 @@ Yours sincerely,
         if (button.dataset.recordPrint === "prescription") printPrescriptionFromVisitNote();
         if (button.dataset.recordPrint === "reply") window.printReply ? window.printReply() : printActiveMedicalRecord();
         if (button.dataset.recordPrint === "certificate") window.printCertificate ? window.printCertificate() : printActiveMedicalRecord();
+        if (button.id === "closePrintPreviewBtn") closePrintPreview();
         if (button.id === "recordAddOnBtn") startRecordAddOn();
         if (button.id === "recordSummaryBtn") showSmartChart();
         if (button.id === "recordMyVoiceSummaryBtn") showMyVoiceSummary();
@@ -7603,7 +7675,7 @@ Yours sincerely,
 
     var printContent = document.getElementById("medicalPrintContent");
     if (!printContent) {
-      alert("Print area is not available. Please refresh and try again.");
+      alert("Preview area is not available. Please refresh and try again.");
       return;
     }
     var hasDoctorHeader = doctorHeader.some(function (line) { return String(line || "").trim(); });
@@ -7630,11 +7702,7 @@ Yours sincerely,
       "</div>";
     document.body.classList.remove("print-prescription", "print-smart-chart");
     document.body.classList.add("print-medical");
-    window.print();
-    if (window.woyzSchedulePrintCleanup) window.woyzSchedulePrintCleanup();
-    else window.setTimeout(function () {
-      document.body.classList.remove("print-medical", "print-prescription", "print-smart-chart");
-    }, 1200);
+    if (window.woyzShowPrintPreview) window.woyzShowPrintPreview();
   }
 
   function addButton(label, type) {
@@ -7661,8 +7729,8 @@ Yours sincerely,
   }
 
   function installButtons() {
-    addButton("Print Certificate", "certificate");
-    addButton("Print Reply", "reply");
+    addButton("Preview Certificate", "certificate");
+    addButton("Preview Reply", "reply");
   }
 
   window.printCertificate = function () { openPrintWindow("certificate"); };
