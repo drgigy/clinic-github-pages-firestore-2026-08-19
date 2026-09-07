@@ -3151,6 +3151,7 @@ ${context}`;
             : compactVisitPatientHeaderHtml(plainTextToHtml(cleanText), patient);
         if (!["prescription", "certificate", "reply", "summary"].includes(activeAmbientMode)) {
           activeRecordDocs.visit = ensureVisitVitalsHtml(activeRecordDocs.visit);
+          activeRecordDocs.visit = stripDuplicateEmptyVitalsHtml(activeRecordDocs.visit);
         }
         if (draftMedicalRecord && activeRecordId === draftMedicalRecord.id && activeRecordView === "draft") {
           draftMedicalRecord.note = text;
@@ -3427,6 +3428,7 @@ ${context}`;
             : compactVisitPatientHeaderHtml(plainTextToHtml(note), patient);
           if (!["prescription", "certificate", "reply", "summary"].includes(processingMode)) {
             activeRecordDocs.visit = ensureVisitVitalsHtml(activeRecordDocs.visit);
+            activeRecordDocs.visit = stripDuplicateEmptyVitalsHtml(activeRecordDocs.visit);
           }
           if (draftMedicalRecord) updateDraftContent(draftMedicalRecord, note, processingMode);
           activeRecordDirty = true;
@@ -3754,6 +3756,29 @@ ${context}`;
         if (html.includes('class="visit-note-title"')) return html.replace(/(<span class="visit-note-title">[\s\S]*?<\/span>)/, `$1${vitalsHtml}`);
         return `${vitalsHtml}${html}`;
       }
+      function isEmptyVitalsLine(value) {
+        const cleaned = cleanSummaryLine(value).replace(/\s+/g, " ").trim();
+        return /^bp\s*:\s*;?\s*pulse(?:\s+rate)?\s*:\s*;?\s*oxygen saturation\s*:\s*;?\s*height\s*:\s*;?\s*weight\s*:\s*;?\s*bmi\s*:?\s*;?$/i.test(cleaned);
+      }
+      function isVitalsHeadingLine(value) {
+        return /^vitals\s*:?\s*$/i.test(String(value || "").trim());
+      }
+      function stripDuplicateEmptyVitalsHtml(value) {
+        const lines = htmlToPlainText(value).split(/\r?\n/).map((line) => line.trim());
+        const vitalsBlocks = [];
+        for (let index = 0; index < lines.length; index += 1) {
+          if (!isVitalsHeadingLine(lines[index])) continue;
+          const next = lines[index + 1] || "";
+          vitalsBlocks.push({ index, empty: isEmptyVitalsLine(next) });
+        }
+        if (vitalsBlocks.length < 2 || !vitalsBlocks.some((block) => !block.empty)) return value;
+        const remove = new Set();
+        vitalsBlocks.filter((block) => block.empty).forEach((block) => {
+          remove.add(block.index);
+          if (isEmptyVitalsLine(lines[block.index + 1] || "")) remove.add(block.index + 1);
+        });
+        return compactVisitPatientHeaderHtml(plainTextToHtml(lines.filter((line, index) => !remove.has(index)).join("\n")), activeRecordPatient());
+      }
       function blankVisitNoteTemplateHtml(patient = {}) {
         return `<span class="visit-note-title">Visit Note</span>${doctorDraftPatientLineHtml(patient)}${plainTextToHtml(`Vitals:
 BP: ; Pulse rate: ; Oxygen saturation: ; Height: ; Weight: ; BMI:
@@ -3806,6 +3831,12 @@ NIL`)}`;
           .replace(/\*\*([^*]+)\*\*/g, "$1")
           .replace(/^[-*•]\s*/, "")
           .trim();
+      }
+      function resetMedicalNoteScroll() {
+        const note = $("#medicalNoteText");
+        if (!note) return;
+        note.scrollTop = 0;
+        requestAnimationFrame(() => { note.scrollTop = 0; });
       }
       function isTreatmentSummaryDateLine(value) {
         return /^\*{0,2}\s*\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4}(?:,\s*\d{1,2}:\d{2})?\s*\*{0,2}\s*$/.test(String(value || "").trim());
@@ -3894,7 +3925,7 @@ NIL`)}`;
       }
       function timelineRecordBody(record) {
         const html = record.docs?.visit || record.noteHtml || "";
-        if (html) return boldVisitNoteHeadingsHtml(html);
+        if (html) return boldVisitNoteHeadingsHtml(stripDuplicateEmptyVitalsHtml(html));
         return plainTextToHtml(record.note || "");
       }
       function treatmentTimelineHtml(records) {
@@ -3906,7 +3937,7 @@ NIL`)}`;
         `).join("")}</div>`;
       }
       function smartChartLines(record) {
-        return htmlToPlainText(timelineRecordBody(record))
+        return htmlToPlainText(stripDuplicateEmptyVitalsHtml(timelineRecordBody(record)))
           .replace(/\b(Vitals|Chief Complaints?|Presenting Complaints?|History of Present Illness|Past Medical or Surgical History|Allergies?|Examination Findings?|Investigations?|Review of investigations|Reports?|Blood reports?|Blood tests?|Labs|Current Medications?|Medications?|Treatment\s*\/\s*Medications|Prescription|Rx|Advice\s*\/\s*Instructions|Advice|Instructions|Follow-?up|Plan|Diagnosis|Review Note)\s*:/gi, "\n$1:")
           .split("\n")
           .map((line) => line.trim())
@@ -4096,6 +4127,30 @@ NIL`)}`;
           return pattern.test(value);
         }) || /\b(cbc|rft|lft|tft|electrolytes?|lipid profile|blood sugar|glucose|hemoglobin|haemoglobin|platelets?|creatinine|sodium|potassium|esr|crp|hba1c)\b/i.test(value);
       }
+      function smartChartBloodTestLabelFromLine(value) {
+        const source = String(value || "");
+        if (/\b(?:hb|hgb|haemoglobin|hemoglobin)\b/i.test(source)) return "Hemoglobin";
+        if (/\b(?:wbc|white blood cells?|tc|total count)\b/i.test(source)) return "WBC";
+        if (/\b(?:platelets?|plt)\b/i.test(source)) return "Platelets";
+        if (/\bcreatinine\b/i.test(source)) return "Creatinine";
+        if (/\burea\b/i.test(source)) return "Urea";
+        if (/\b(?:sodium|na\+?)\b/i.test(source)) return "Sodium";
+        if (/\b(?:potassium|k\+?)\b/i.test(source)) return "Potassium";
+        if (/\besr\b/i.test(source)) return "ESR";
+        if (/\bcrp\b/i.test(source)) return "CRP";
+        if (/\btsh\b/i.test(source)) return "TSH";
+        if (/\b(?:hba1c|a1c)\b/i.test(source)) return "HbA1c";
+        if (/\b(?:fbs|fasting blood sugar|fasting glucose)\b/i.test(source)) return "FBS";
+        if (/\b(?:ppbs|post prandial blood sugar|postprandial glucose)\b/i.test(source)) return "PPBS";
+        if (/\b(?:alt|sgpt)\b/i.test(source)) return "ALT";
+        if (/\b(?:ast|sgot)\b/i.test(source)) return "AST";
+        return "";
+      }
+      function smartChartStandaloneLabValue(value) {
+        const match = String(value || "").trim().match(/^(\d+(?:\.\d+)?)\s*(g\/?dl|gm%|g%|mg\/?dl|mmol\/?l|meq\/?l|mm\/?hr|mg\/?l|miu\/?l|uiu\/?ml|u\/?l|iu\/?l|%|lakhs?|lakh|k)?$/i);
+        if (!match) return null;
+        return { value: Number(match[1]), unit: match[2] || "" };
+      }
       function smartChartInvestigationRows(records) {
         const rows = [];
         const seen = new Set();
@@ -4158,9 +4213,23 @@ NIL`)}`;
       function smartChartBloodRows(records) {
         const rows = [];
         const seen = new Set();
+        const addBloodRow = (dateInfo, label, value, unit) => {
+          if (!Number.isFinite(value)) return;
+          const key = `${dateInfo.sortDate}__${label.toLowerCase()}__${value}__${String(unit || "").toLowerCase()}`;
+          if (seen.has(key)) return;
+          seen.add(key);
+          rows.push({
+            date: dateInfo.sortDate,
+            label: dateInfo.label,
+            test: label,
+            value,
+            unit: unit || ""
+          });
+        };
         records.forEach((record) => {
           let section = "";
           let currentBloodDate = null;
+          let pendingBloodTest = null;
           smartChartLines(record).forEach((line) => {
             const cleaned = cleanSummaryLine(line);
             if (!cleaned) return;
@@ -4175,6 +4244,7 @@ NIL`)}`;
             if (isSmartChartStopHeading(cleaned)) {
               section = "";
               currentBloodDate = null;
+              pendingBloodTest = null;
               return;
             }
             const lineDate = smartChartParsedDate(cleaned);
@@ -4182,6 +4252,12 @@ NIL`)}`;
             smartChartSentencePieces(cleaned).forEach((piece) => {
               const stripHeading = piece.replace(/^(blood reports?|blood tests?|labs?|laboratory results?|investigations?|review of investigations)\s*:?\s*/i, "").trim();
               if (!stripHeading) return;
+              const standalone = smartChartStandaloneLabValue(stripHeading);
+              if (pendingBloodTest && standalone) {
+                addBloodRow(pendingBloodTest.dateInfo, pendingBloodTest.label, standalone.value, standalone.unit);
+                pendingBloodTest = null;
+                return;
+              }
               bloodTestPatterns().forEach(([label, pattern]) => {
                 pattern.lastIndex = 0;
                 [...stripHeading.matchAll(pattern)].forEach((match) => {
@@ -4189,18 +4265,16 @@ NIL`)}`;
                   if (!Number.isFinite(value)) return;
                   const unit = match[2] || "";
                   const dateInfo = smartChartParsedDate(stripHeading) || currentBloodDate || smartChartResultDate(record, stripHeading);
-                  const key = `${dateInfo.sortDate}__${label.toLowerCase()}__${value}__${unit.toLowerCase()}`;
-                  if (seen.has(key)) return;
-                  seen.add(key);
-                  rows.push({
-                    date: dateInfo.sortDate,
-                    label: dateInfo.label,
-                    test: label,
-                    value,
-                    unit
-                  });
+                  addBloodRow(dateInfo, label, value, unit);
                 });
               });
+              const testLabel = smartChartBloodTestLabelFromLine(stripHeading);
+              if (testLabel && !standalone) {
+                pendingBloodTest = {
+                  label: testLabel,
+                  dateInfo: smartChartParsedDate(stripHeading) || currentBloodDate || smartChartResultDate(record, stripHeading)
+                };
+              }
             });
           });
         });
@@ -4287,6 +4361,29 @@ NIL`)}`;
           };
         }).filter(Boolean).sort((a, b) => new Date(a.date) - new Date(b.date));
       }
+      function smartChartSnapshotInvestigationItems(records) {
+        const chartItems = smartChartInvestigationRows(records).map((row) => `${row.label}: ${row.test} - ${row.text}`);
+        const bloodItems = smartChartBloodRows(records).map((row) => {
+          const unit = row.unit || (row.test === "Hemoglobin" ? "g/dL" : "");
+          return `${row.label}: ${row.test} ${row.value}${unit ? ` ${unit}` : ""}`;
+        });
+        const groupedItems = [];
+        records.forEach((record) => {
+          const recordLabel = smartChartDateLabel(record);
+          const lines = smartChartRecordSections(record).investigations || [];
+          for (let index = 0; index < lines.length; index += 1) {
+            const line = smartChartCleanInvestigationLine(lines[index]);
+            if (!line || smartChartStandaloneLabValue(line)) continue;
+            const next = smartChartStandaloneLabValue(lines[index + 1] || "");
+            const lineDate = smartChartParsedDate(line);
+            const label = lineDate?.label || recordLabel;
+            const itemText = next ? `${line} - ${next.value}${next.unit ? ` ${next.unit}` : ""}` : line;
+            groupedItems.push(`${label}: ${itemText}`);
+            if (next) index += 1;
+          }
+        });
+        return uniqueConciseItems([...chartItems, ...bloodItems, ...groupedItems], 5);
+      }
       function patientSnapshotHtml(patient, records) {
         const sections = records.map(smartChartRecordSections);
         const all = (key) => sections.flatMap((section) => section[key] || []);
@@ -4294,10 +4391,7 @@ NIL`)}`;
           patient.customDiagnosis || patient.diagnosis || "",
           ...all("diagnosis")
         ], 5);
-        const investigationItems = uniqueConciseItems([
-          ...smartChartInvestigationRows(records).map((row) => `${row.label}: ${row.test} - ${row.text}`),
-          ...all("investigations")
-        ], 5);
+        const investigationItems = smartChartSnapshotInvestigationItems(records);
         const vitalsItems = uniqueConciseItems(smartChartVitalsRows(records).map((row) => `${row.label}: ${row.text}`), 4);
         const snapshot = [
           ["Allergies", uniqueConciseItems(all("allergies"), 4)],
@@ -4616,6 +4710,7 @@ NIL`)}`;
         $("#recordVisitDate").textContent = "Smart Chart";
         $("#medicalNoteText").setAttribute("contenteditable", "false");
         $("#medicalNoteText").innerHTML = smartChartHtml(patient, records);
+        resetMedicalNoteScroll();
         $("#recordDeleteBtn").hidden = true;
         $("#recordDeleteBtn").title = "Delete note";
         $("#recordDeleteBtn").setAttribute("aria-label", "Delete note");
@@ -4642,6 +4737,7 @@ NIL`)}`;
         $("#recordVisitDate").textContent = "My Voice Summary";
         $("#medicalNoteText").setAttribute("contenteditable", "false");
         $("#medicalNoteText").innerHTML = myVoiceSummaryHtml(patient, records);
+        resetMedicalNoteScroll();
         $("#recordDeleteBtn").hidden = true;
         $("#recordDeleteBtn").title = "Delete note";
         $("#recordDeleteBtn").setAttribute("aria-label", "Delete note");
@@ -5462,6 +5558,7 @@ NIL`)}`;
             </section>
           `;
         }).join("") : `<div class="empty">No notes yet. Click Add note.</div>`;
+        resetMedicalNoteScroll();
         $("#recordVisitDate").textContent = "All entries";
         if (draftMedicalRecord?.source === "ambient" && ["recording", "paused", "stopped", "processing"].includes(ambientState)) {
           $("#recordStatus").textContent = "";
@@ -5525,6 +5622,7 @@ NIL`)}`;
         persistCurrentRecordTab();
         if (!["prescription", "certificate", "reply", "summary"].includes(activeAmbientMode)) {
           activeRecordDocs.visit = ensureVisitVitalsHtml(compactVisitPatientHeaderHtml(activeRecordDocs.visit || $("#medicalNoteText").innerHTML, patient));
+          activeRecordDocs.visit = stripDuplicateEmptyVitalsHtml(activeRecordDocs.visit);
           $("#medicalNoteText").innerHTML = activeRecordDocs.visit;
         }
         applyRecordPatientIdentityFromNote(patient);
@@ -5651,10 +5749,12 @@ NIL`)}`;
         if (!["prescription", "certificate", "reply", "summary"].includes(activeAmbientMode)) {
           activeRecordDocs.visit = compactVisitPatientHeaderHtml(activeRecordDocs.visit, patient);
           activeRecordDocs.visit = ensureVisitVitalsHtml(activeRecordDocs.visit);
+          activeRecordDocs.visit = stripDuplicateEmptyVitalsHtml(activeRecordDocs.visit);
         }
         activeRecordType = "visit";
         $("#medicalNoteText").setAttribute("contenteditable", "true");
         $("#medicalNoteText").innerHTML = activeRecordDocs.visit;
+        resetMedicalNoteScroll();
         setAmbientButtons();
         $("#recordDeleteBtn").hidden = !record;
         $("#recordDeleteBtn").title = "Delete note";
