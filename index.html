@@ -397,11 +397,10 @@
       .previous-actions [data-all-records] { order: 3; grid-column: 1 / -1; }
       .note-action { justify-content: center; min-height: 54px; font-size: 16px; font-weight: 900; text-align: center; }
       .previous-record { justify-content: flex-start; width: 100%; text-align: left; min-height: auto; padding: 10px; }
+      .record-entry-row .previous-record { min-height: 54px; padding: 8px 10px; }
       .previous-record.active { background: var(--primary); color: #fff; }
       .previous-record.active span { color: #d7fffa; }
-      .previous-record span { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; }
-      .previous-record .record-doctor { color: #718298; font-size: 11px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
-      .previous-record.active .record-doctor { color: #d7fffa; }
+      .previous-record span { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
       .record-entry-row { display: grid; grid-template-columns: 1fr; gap: 6px; align-items: stretch; }
       .icon-delete { min-height: 38px; width: 38px; padding: 0; color: var(--danger-ink); background: var(--danger); }
       .icon-delete svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -1144,8 +1143,8 @@
         </div>
         <div class="field">
           <span>Diagnosis</span>
-          <div id="recordDiagnosisChoices" class="comment-choice-row" aria-label="Patient diagnosis" hidden></div>
-          <input id="recordDiagnosisInput" class="comment-other-input" autocomplete="off" placeholder="Enter diagnosis manually" />
+          <div id="recordDiagnosisChoices" class="comment-choice-row" aria-label="Patient diagnosis"></div>
+          <input id="recordDiagnosisInput" class="comment-other-input" autocomplete="off" placeholder="Type other diagnosis" hidden />
         </div>
         <div class="actions">
           <button class="primary" type="button" id="saveRecordDiagnosisBtn">Save diagnosis</button>
@@ -2017,20 +2016,33 @@
       function setRecordDiagnosisSelection(value = "") {
         const cleanValue = String(value || "").trim();
         renderRecordDiagnosisChoices(cleanValue);
+        const preset = reusableDiagnoses().find((item) => item.toLowerCase() === cleanValue.toLowerCase());
+        const selectedValue = preset || (cleanValue && cleanValue !== "Others" ? "Other" : "");
         const input = $("#recordDiagnosisInput");
+        $$("#recordDiagnosisChoices [data-record-diagnosis]").forEach((button) => {
+          button.classList.toggle("active", button.dataset.recordDiagnosis === selectedValue);
+        });
         if (input) {
-          input.hidden = false;
-          input.value = cleanValue === "Others" ? "" : cleanValue;
+          input.hidden = selectedValue !== "Other";
+          input.value = preset || cleanValue === "Others" ? "" : cleanValue;
         }
       }
       function renderRecordDiagnosisChoices(selectedValue = "") {
         const box = $("#recordDiagnosisChoices");
         if (!box) return;
-        box.hidden = true;
-        box.innerHTML = "";
+        const selectedClean = String(selectedValue || "").trim();
+        const preset = reusableDiagnoses().find((item) => item.toLowerCase() === selectedClean.toLowerCase());
+        box.hidden = false;
+        box.innerHTML = [
+          ...reusableDiagnoses().map((diagnosis) => `<button class="choice ${diagnosis === preset ? "active" : ""}" type="button" data-record-diagnosis="${escapeHtml(diagnosis)}">${escapeHtml(diagnosis)}</button>`),
+          `<button class="choice ${!preset && selectedClean && selectedClean !== "Others" ? "active" : ""}" type="button" data-record-diagnosis="Other">Other</button>`
+        ].join("");
       }
       function selectedRecordDiagnosis() {
-        return $("#recordDiagnosisInput")?.value.trim() || "";
+        const selectedButton = document.querySelector("#recordDiagnosisChoices [data-record-diagnosis].active");
+        if (!selectedButton) return "";
+        if (selectedButton.dataset.recordDiagnosis === "Other") return $("#recordDiagnosisInput").value.trim();
+        return selectedButton.dataset.recordDiagnosis;
       }
       function setChoice(button) {
         const group = button.closest("[data-group]");
@@ -3569,8 +3581,8 @@ ${context}`;
           ${rows.length ? rows.map((record) => `
           <div class="record-entry-row">
             <button class="secondary previous-record ${activeRecordView === "single" && record.id === activeRecordId ? "active" : ""}" type="button" data-open-record="${record.id}">
-              <strong>${record.source === "ambient" ? `${ambientModeLabel(record.recordKind || "visit")} - ` : ""}${dateTimeLabel(recordTimestamp(record))}</strong>
-              ${recordDoctorLabel(record) ? `<span class="record-doctor">${escapeHtml(recordDoctorLabel(record))}</span>` : ""}
+              <strong>${escapeHtml(ambientModeLabel(record.recordKind || "visit"))}</strong>
+              <span>${escapeHtml(dateTimeLabel(recordTimestamp(record)))}</span>
             </button>
           </div>
         `).join("") : `<div class="empty">No notes yet. Click Add note.</div>`}
