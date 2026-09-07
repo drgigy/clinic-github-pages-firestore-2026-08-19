@@ -669,6 +669,28 @@
         .section.wide, .preview-area { grid-column: auto; }
         .report-grid { grid-template-columns: repeat(3, minmax(120px, 1fr)); }
       }
+      @media (min-width: 761px) and (max-width: 1180px) {
+        .queue-overview.search-visible {
+          grid-template-columns: minmax(150px, auto) minmax(320px, 420px);
+          grid-template-areas:
+            "add search"
+            "stats stats";
+          justify-content: start;
+          align-items: center;
+          gap: 10px 12px;
+        }
+        .queue-overview.search-visible #openAddPatientBtn { grid-area: add; }
+        .queue-overview.search-visible .doctor-mobile-add { display: none !important; }
+        .queue-overview.search-visible .doctor-search-panel { grid-area: search; width: 100%; }
+        .queue-overview.search-visible .stats {
+          grid-area: stats;
+          grid-template-columns: repeat(5, minmax(130px, 1fr));
+          gap: 8px;
+        }
+        .queue-overview.search-visible .stat { min-height: 46px; padding: 7px 10px; }
+        .queue-overview.search-visible .stat span { font-size: 12px; }
+        .queue-overview.search-visible .stat strong { font-size: 22px; }
+      }
       @media (max-width: 760px) {
         .compact-nav { padding: 10px 16px; }
         .home-dropdown { width: min(230px, calc(100vw - 32px)); }
