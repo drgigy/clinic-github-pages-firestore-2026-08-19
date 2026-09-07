@@ -332,10 +332,11 @@
       .ambient-stop { background: #f04b08; }
       .ambient-note { width: 100%; height: 100%; min-height: 360px; resize: none; border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif; font-size: 16px; line-height: 1.55; color: var(--ink); background: #fff; outline: none; }
       .record-patient-fields { display: none; }
-      .draft-patient-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 0 0 16px; font-size: 15px; line-height: 1.35; }
+      .draft-patient-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin: 0 0 16px; font-size: 15px; line-height: 1.25; }
+      .draft-patient-line > span { display: inline-flex; align-items: baseline; gap: 4px; line-height: 1.25; }
       .draft-patient-line span { white-space: nowrap; }
       .draft-patient-line strong { font-weight: 800; color: var(--ink); }
-      .draft-patient-line [contenteditable="true"] { display: inline-block; min-width: 36px; max-width: 220px; padding: 0 2px; border-bottom: 1px dotted transparent; outline: none; font-weight: 500; color: var(--ink); vertical-align: baseline; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .draft-patient-line [contenteditable="true"] { display: inline-block; min-width: 36px; max-width: 220px; padding: 0 2px; border-bottom: 1px dotted transparent; outline: none; font-weight: 500; line-height: 1.25; color: var(--ink); vertical-align: baseline; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       #recordDraftName { min-width: 120px; max-width: 360px; }
       .draft-patient-line [contenteditable="true"]:focus { border-bottom-color: var(--primary); background: #eefaf4; }
       .draft-patient-line [contenteditable="true"]:empty::before { content: attr(data-placeholder); color: #8997a8; font-weight: 500; }
@@ -1143,8 +1144,8 @@
         </div>
         <div class="field">
           <span>Diagnosis</span>
-          <div id="recordDiagnosisChoices" class="comment-choice-row" aria-label="Patient diagnosis"></div>
-          <input id="recordDiagnosisInput" class="comment-other-input" autocomplete="off" placeholder="Type custom diagnosis" hidden />
+          <div id="recordDiagnosisChoices" class="comment-choice-row" aria-label="Patient diagnosis" hidden></div>
+          <input id="recordDiagnosisInput" class="comment-other-input" autocomplete="off" placeholder="Enter diagnosis manually" />
         </div>
         <div class="actions">
           <button class="primary" type="button" id="saveRecordDiagnosisBtn">Save diagnosis</button>
@@ -2016,32 +2017,20 @@
       function setRecordDiagnosisSelection(value = "") {
         const cleanValue = String(value || "").trim();
         renderRecordDiagnosisChoices(cleanValue);
-        const preset = reusableDiagnoses().find((item) => item.toLowerCase() === cleanValue.toLowerCase());
-        const selectedValue = preset || (cleanValue ? "Other" : "");
         const input = $("#recordDiagnosisInput");
-        $$("#recordDiagnosisChoices [data-record-diagnosis]").forEach((button) => {
-          button.classList.toggle("active", button.dataset.recordDiagnosis === selectedValue);
-        });
         if (input) {
-          input.hidden = selectedValue !== "Other";
-          input.value = preset ? "" : cleanValue;
+          input.hidden = false;
+          input.value = cleanValue === "Others" ? "" : cleanValue;
         }
       }
       function renderRecordDiagnosisChoices(selectedValue = "") {
         const box = $("#recordDiagnosisChoices");
         if (!box) return;
-        const selectedClean = String(selectedValue || "").trim();
-        const preset = reusableDiagnoses().find((item) => item.toLowerCase() === selectedClean.toLowerCase());
-        box.innerHTML = [
-          ...reusableDiagnoses().map((diagnosis) => `<button class="choice ${diagnosis === preset ? "active" : ""}" type="button" data-record-diagnosis="${escapeHtml(diagnosis)}">${escapeHtml(diagnosis)}</button>`),
-          `<button class="choice ${!preset && selectedClean ? "active" : ""}" type="button" data-record-diagnosis="Other">Other</button>`
-        ].join("");
+        box.hidden = true;
+        box.innerHTML = "";
       }
       function selectedRecordDiagnosis() {
-        const selectedButton = document.querySelector("#recordDiagnosisChoices [data-record-diagnosis].active");
-        if (!selectedButton) return "";
-        if (selectedButton.dataset.recordDiagnosis === "Other") return $("#recordDiagnosisInput").value.trim();
-        return selectedButton.dataset.recordDiagnosis;
+        return $("#recordDiagnosisInput")?.value.trim() || "";
       }
       function setChoice(button) {
         const group = button.closest("[data-group]");
@@ -3411,11 +3400,8 @@ ${context}`;
           }
           if (isPendingDoctorPatient(patient) && processingMode === "visit") {
             const extracted = parseUnregisteredVisitOutput(note);
-            Object.assign(patient, extracted.patient);
-            if (extracted.patient.diagnosis) {
-              patient.customDiagnosis = reusableDiagnoses().includes(extracted.patient.diagnosis) ? "" : extracted.patient.diagnosis;
-              patient.diagnosis = reusableDiagnoses().includes(extracted.patient.diagnosis) ? extracted.patient.diagnosis : "Others";
-            }
+            const { diagnosis: _ignoredDiagnosis, ...patientIdentity } = extracted.patient;
+            Object.assign(patient, patientIdentity);
             setRecordPatientDraftFields(patient);
             syncPendingDoctorDraft(patient);
             updateRecordPatientHeader(patient);
@@ -7098,7 +7084,7 @@ NIL`)}`;
           const patient = activeRecordPatient();
           if (patient) {
             const diagnosis = selectedRecordDiagnosis();
-            if (!diagnosis) { alert("Select or enter a diagnosis."); return; }
+            if (!diagnosis) { alert("Enter a diagnosis."); return; }
             await updatePatientDiagnosisByUhid(patient, diagnosis);
             $("#recordStatus").textContent = "Diagnosis saved.";
           }
