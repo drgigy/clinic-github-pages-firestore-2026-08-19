@@ -532,6 +532,17 @@
         body.print-medical .medical-print-content h1 { font-size: 22px; font-weight: 900 !important; margin: 0 0 8px; }
         body.print-medical .medical-print-content .meta { color: #444; margin-bottom: 18px; }
         body.print-medical .medical-print-content pre { white-space: pre-wrap; font: 14px/1.5 Arial, sans-serif; border-top: 1px solid #ccc; padding-top: 14px; }
+        body.print-medical .letter-print { font-size: 14px; line-height: 1.45; }
+        body.print-medical .letter-print .doctor-header { background: #eef2f4; padding: 18px 24px; margin: -2in -1in 24px; }
+        body.print-medical .letter-print .doctor-header strong { display: block; font-size: 22px; margin-bottom: 4px; }
+        body.print-medical .letter-print .doctor-header div { font-size: 14px; }
+        body.print-medical .letter-print .patient-name { font-size: 20px; font-weight: 800 !important; margin: 0 0 6px; }
+        body.print-medical .letter-print .meta { font-size: 12px; margin-bottom: 28px; }
+        body.print-medical .letter-print .doc-title { text-align: center; font-size: 18px; font-weight: 800 !important; text-decoration: underline; margin: 10px 0 24px; }
+        body.print-medical .letter-print .body { white-space: normal; min-height: 360px; }
+        body.print-medical .letter-print .body p { margin: 0 0 12px; }
+        body.print-medical .letter-print .signature { margin-top: 48px; font-weight: 700; }
+        body.print-medical .letter-print .signature span { display: block; font-weight: 400; }
         body.print-medical .treatment-summary-print { font-size: 14px; line-height: 1.35; border-top: 1px solid #ccc; padding-top: 14px; }
         body.print-medical .smart-chart-actions { display: none; }
         body.print-medical .smart-delete-btn { display: none; }
@@ -5392,7 +5403,17 @@ NIL`)}`;
         $("#medicalPrintContent").innerHTML = formatPrescriptionPrintHtml(prescriptionHtml, patient);
         document.body.classList.add("print-medical", "print-prescription");
         window.print();
+        schedulePrintCleanup();
       }
+      function cleanupPrintState() {
+        document.body.classList.remove("print-accounts", "print-medical", "print-prescription", "print-smart-chart");
+        $("#medicalPrintContent")?.classList.remove("smart-print-content");
+      }
+      function schedulePrintCleanup() {
+        window.setTimeout(cleanupPrintState, 1200);
+      }
+      window.woyzCleanupPrintState = cleanupPrintState;
+      window.woyzSchedulePrintCleanup = schedulePrintCleanup;
       function openAddPatientModal() {
         renderCommentSelects();
         renderDiagnosisSelects();
@@ -5649,6 +5670,7 @@ NIL`)}`;
         document.body.classList.toggle("print-smart-chart", isSmartPrintView);
         document.body.classList.add("print-medical");
         window.print();
+        schedulePrintCleanup();
       }
       async function saveActiveMedicalRecord() {
         const patient = activeRecordPatient();
@@ -7136,7 +7158,7 @@ NIL`)}`;
         if (button.id === "toggleAccounts") { accountsExpanded = !accountsExpanded; renderAccounts(); }
         if (button.id === "printAccountsBtn") printAccountsReport();
         if (button.id === "closeAccountsReportBtn") { $("#accountsReportOverlay").classList.remove("open"); $("#accountsReportOverlay").setAttribute("aria-hidden", "true"); }
-        if (button.id === "savePdfAccountsBtn" || button.id === "printInlineAccountsBtn") { document.body.classList.add("print-accounts"); window.print(); }
+        if (button.id === "savePdfAccountsBtn" || button.id === "printInlineAccountsBtn") { document.body.classList.add("print-accounts"); window.print(); schedulePrintCleanup(); }
         if (button.id === "recordSaveBtn") await saveActiveMedicalRecord();
         if (button.id === "recordSaveCloseBtn") { await saveActiveMedicalRecord(); closeMedicalRecordScreen(); }
         if (button.dataset.printSmartChart) printActiveMedicalRecord();
@@ -7188,7 +7210,7 @@ NIL`)}`;
         if (button.id === "prevDateBtn") shiftSelectedDate(-1);
         if (button.id === "nextDateBtn") shiftSelectedDate(1);
       });
-      window.addEventListener("afterprint", () => document.body.classList.remove("print-accounts", "print-medical", "print-prescription"));
+      window.addEventListener("afterprint", cleanupPrintState);
       window.addEventListener("resize", applyAmbientFloatPosition);
       document.addEventListener("change", (event) => {
         if (event.target.id === "clinicDate") {
@@ -7462,43 +7484,40 @@ NIL`)}`;
       patient.date
     ].filter(Boolean).join(" | ");
 
-    var html = "<!doctype html><html><head><meta charset='utf-8'><title>" + title + "</title>" +
-      "<style>" +
-      "@page{size:A4;margin:18mm;}" +
-      "body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;color:#111;margin:0;font-size:14px;line-height:1.45;}" +
-      ".doctor-header{background:#eef2f4;padding:18px 24px;margin:-18mm -18mm 24px -18mm;}" +
-      ".doctor-header strong{display:block;font-size:22px;margin-bottom:4px;}" +
-      ".doctor-header div{font-size:14px;}" +
-      ".patient-name{font-size:20px;font-weight:800;margin:0 0 6px;}" +
-      ".meta{font-size:12px;margin-bottom:28px;}" +
-      ".doc-title{text-align:center;font-size:18px;font-weight:800;text-decoration:underline;margin:10px 0 24px;}" +
-      ".body{white-space:normal;min-height:360px;}" +
-      ".body p{margin:0 0 12px;}" +
-      ".signature{margin-top:48px;font-weight:700;}" +
-      ".signature span{display:block;font-weight:400;}" +
-      "</style></head><body>" +
-      "<div class='doctor-header'><strong>" + escapeHtml(doctorHeader[0]) + "</strong>" +
-      "<div>" + escapeHtml(doctorHeader[1]) + "</div>" +
-      "<div>" + escapeHtml(doctorHeader[2]) + "</div>" +
-      "<div>" + escapeHtml(doctorHeader[3]) + "</div></div>" +
+    var printContent = document.getElementById("medicalPrintContent");
+    if (!printContent) {
+      alert("Print area is not available. Please refresh and try again.");
+      return;
+    }
+    var hasDoctorHeader = doctorHeader.some(function (line) { return String(line || "").trim(); });
+    var doctorHeaderHtml = hasDoctorHeader
+      ? "<div class='doctor-header'><strong>" + escapeHtml(doctorHeader[0]) + "</strong>" +
+        "<div>" + escapeHtml(doctorHeader[1]) + "</div>" +
+        "<div>" + escapeHtml(doctorHeader[2]) + "</div>" +
+        "<div>" + escapeHtml(doctorHeader[3]) + "</div></div>"
+      : "";
+    var signatureHtml = hasDoctorHeader
+      ? "<div class='signature'>" + escapeHtml(doctorHeader[0]) +
+        "<span>" + escapeHtml(doctorHeader[1]) + "</span>" +
+        "<span>" + escapeHtml(doctorHeader[2]) + "</span></div>"
+      : "";
+    printContent.classList.remove("smart-print-content");
+    printContent.innerHTML =
+      "<div class='letter-print'>" +
+      doctorHeaderHtml +
       "<h1 class='patient-name'>" + escapeHtml(patient.name) + "</h1>" +
       "<div class='meta'>" + escapeHtml(patientLine) + "</div>" +
       "<div class='doc-title'>" + title + "</div>" +
       "<div class='body'>" + paragraphsFromText(content) + "</div>" +
-      "<div class='signature'>" + escapeHtml(doctorHeader[0]) +
-      "<span>" + escapeHtml(doctorHeader[1]) + "</span>" +
-      "<span>" + escapeHtml(doctorHeader[2]) + "</span></div>" +
-      "<script>window.onload=function(){setTimeout(function(){window.print();},100);};<\/script>" +
-      "</body></html>";
-
-    var printWindow = window.open("", "_blank");
-    if (!printWindow) {
-      alert("Popup blocked. Please allow popups for this site to print.");
-      return;
-    }
-    printWindow.document.open();
-    printWindow.document.write(html);
-    printWindow.document.close();
+      signatureHtml +
+      "</div>";
+    document.body.classList.remove("print-prescription", "print-smart-chart");
+    document.body.classList.add("print-medical");
+    window.print();
+    if (window.woyzSchedulePrintCleanup) window.woyzSchedulePrintCleanup();
+    else window.setTimeout(function () {
+      document.body.classList.remove("print-medical", "print-prescription", "print-smart-chart");
+    }, 1200);
   }
 
   function addButton(label, type) {
