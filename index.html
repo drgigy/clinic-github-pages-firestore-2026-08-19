@@ -397,10 +397,11 @@
       .previous-actions [data-all-records] { order: 3; grid-column: 1 / -1; }
       .note-action { justify-content: center; min-height: 54px; font-size: 16px; font-weight: 900; text-align: center; }
       .previous-record { justify-content: flex-start; width: 100%; text-align: left; min-height: auto; padding: 10px; }
-      .record-entry-row .previous-record { min-height: 54px; padding: 8px 10px; }
+      .record-entry-row .previous-record { display: flex; align-items: center; justify-content: flex-start; gap: 19px; min-height: 54px; padding: 8px 10px; }
       .previous-record.active { background: var(--primary); color: #fff; }
       .previous-record.active span { color: #d7fffa; }
       .previous-record span { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+      .record-entry-row .previous-record span { margin-top: 0; }
       .record-entry-row { display: grid; grid-template-columns: 1fr; gap: 6px; align-items: stretch; }
       .icon-delete { min-height: 38px; width: 38px; padding: 0; color: var(--danger-ink); background: var(--danger); }
       .icon-delete svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -423,6 +424,11 @@
       .snapshot-item h3 { border: 0; padding: 0; margin: 0 0 5px; font-size: 13px; font-weight: 950; color: #334454; }
       .snapshot-item ul { margin: 0; padding-left: 17px; display: grid; gap: 3px; }
       .snapshot-item li { font-size: 13px; line-height: 1.35; }
+      .snapshot-item.allergy-card h3, .snapshot-item.allergy-card li { color: #b91c1c; }
+      .snapshot-date-group { display: grid; gap: 4px; margin-top: 8px; }
+      .snapshot-date-group:first-child { margin-top: 0; }
+      .snapshot-date-title { color: var(--green-dark); font-size: 12px; font-weight: 950; }
+      .snapshot-date-group ul { margin: 0; }
       .snapshot-empty { color: var(--muted); font-weight: 750; }
       .smart-chart-graphs { display: grid; grid-template-columns: 1fr; gap: 10px; }
       .blood-chart { border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; background: #fff; box-shadow: 0 1px 3px rgba(16, 32, 43, .05); }
@@ -436,6 +442,7 @@
       .vitals-chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 10px; }
       .vitals-chart-grid .blood-chart svg { height: 190px; }
       .vitals-chart .blood-chart-number { color: var(--green-dark); }
+      .allergy-alert { color: #b91c1c; font-weight: 850; }
       .myvoice-summary { display: grid; gap: 12px; }
       .myvoice-section { border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; background: #fff; break-inside: avoid; }
       .myvoice-section h2 { font-size: 17px; font-weight: 950; margin: 0 0 8px; }
@@ -3721,9 +3728,15 @@ ${context}`;
         if (activeRecordView === "draft") captureActiveDraft();
       }
       function plainTextToHtml(value) {
+        let inAllergies = false;
         return String(value || "").split(/\r?\n/).map((line) => {
           const escaped = escapeHtml(line);
-          return isVisitNoteHeadingLine(line) ? `<strong>${escaped}</strong>` : escaped;
+          if (isVisitNoteHeadingLine(line)) {
+            inAllergies = isAllergiesHeadingLine(line);
+            const className = inAllergies ? ` class="allergy-alert"` : "";
+            return `<strong${className}>${escaped}</strong>`;
+          }
+          return inAllergies && line.trim() ? `<span class="allergy-alert">${escaped}</span>` : escaped;
         }).join("<br>");
       }
       function doctorDraftPatientLineHtml(patient = {}) {
@@ -3819,6 +3832,9 @@ NIL`)}`;
       }
       function isVisitNoteHeadingLine(value) {
         return /^(vitals|chief complaints?|presenting complaints?|history of present illness|past medical or surgical history|allergies|family history|personal history|examination findings?|review of investigations|current medications?|diagnosis|prescription|advice(?:\s*\/\s*instructions)?|review note)\s*:$/i.test(String(value || "").trim());
+      }
+      function isAllergiesHeadingLine(value) {
+        return /^allergies?\s*:$/i.test(String(value || "").trim());
       }
       function boldVisitNoteHeadingsHtml(value) {
         const source = String(value || "");
@@ -4383,6 +4399,84 @@ NIL`)}`;
         });
         return uniqueConciseItems([...chartItems, ...bloodItems, ...groupedItems], 5);
       }
+      function smartChartDateGroupsHtml(groups) {
+        const visibleGroups = groups.filter((group) => group.items.length);
+        if (!visibleGroups.length) return `<div class="snapshot-empty">No clear saved information.</div>`;
+        return visibleGroups.map((group) => `
+          <div class="snapshot-date-group">
+            <div class="snapshot-date-title">${escapeHtml(group.label)}</div>
+            <ul>${group.items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+          </div>
+        `).join("");
+      }
+      function smartChartCleanNumberedItem(value) {
+        return smartChartCleanInvestigationLine(value).replace(/^\d+\.\s*/, "").trim();
+      }
+      function isMedicineNameLine(value) {
+        return /\b(tablet|tab|capsule|cap|injection|syrup|mg|mcg|ml)\b/i.test(value);
+      }
+      function isMedicineFrequencyLine(value) {
+        return !isMedicineNameLine(value) && /\b(once|twice|thrice|daily|morning|noon|night|bedtime|after food|before food|weekly|monthly)\b/i.test(value);
+      }
+      function smartChartMedicationGroups(records) {
+        return records.map((record) => {
+          const sections = smartChartRecordSections(record);
+          const lines = [...(sections.medicines || []), ...(sections.prescription || [])].map(smartChartCleanNumberedItem).filter(Boolean);
+          const items = [];
+          for (let index = 0; index < lines.length; index += 1) {
+            const line = lines[index];
+            const next = lines[index + 1] || "";
+            const nextLooksLikeDose = next && isMedicineNameLine(line) && isMedicineFrequencyLine(next);
+            items.push(nextLooksLikeDose ? `${line} - ${next}` : line);
+            if (nextLooksLikeDose) index += 1;
+          }
+          return { label: smartChartDateLabel(record), items: uniqueConciseItems(items, 8) };
+        }).filter((group) => group.items.length);
+      }
+      function mergeSmartChartDateGroups(groups, limit = 12) {
+        const merged = new Map();
+        groups.forEach((group) => {
+          const existing = merged.get(group.label) || [];
+          merged.set(group.label, uniqueConciseItems([...existing, ...group.items], limit));
+        });
+        return [...merged.entries()].map(([label, items]) => ({ label, items }));
+      }
+      function smartChartInvestigationGroups(records) {
+        const groups = records.map((record) => {
+          const lines = smartChartRecordSections(record).investigations || [];
+          const items = [];
+          for (let index = 0; index < lines.length; index += 1) {
+            const line = smartChartCleanNumberedItem(lines[index]);
+            if (!line || smartChartStandaloneLabValue(line)) continue;
+            const next = smartChartStandaloneLabValue(lines[index + 1] || "");
+            const itemText = next ? `${line} - ${next.value}${next.unit ? ` ${next.unit}` : ""}` : line;
+            items.push(itemText);
+            if (next) index += 1;
+          }
+          smartChartBloodRows([record]).forEach((row) => {
+            const unit = row.unit || (row.test === "Hemoglobin" ? "g/dL" : "");
+            items.push(`${row.test}: ${row.value}${unit ? ` ${unit}` : ""}`);
+          });
+          smartChartInvestigationRows([record]).forEach((row) => {
+            items.push(`${row.test}: ${row.text}`);
+          });
+          return { label: smartChartDateLabel(record), items: uniqueConciseItems(items, 12) };
+        }).filter((group) => group.items.length);
+        return mergeSmartChartDateGroups(groups, 12);
+      }
+      function smartChartSnapshotCardHtml(title, bodyHtml, className = "") {
+        return `
+          <div class="snapshot-item ${className}">
+            <h3>${escapeHtml(title)}</h3>
+            ${bodyHtml}
+          </div>
+        `;
+      }
+      function smartChartSnapshotListHtml(items) {
+        return items.length
+          ? `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`
+          : `<div class="snapshot-empty">No clear saved information.</div>`;
+      }
       function patientSnapshotHtml(patient, records) {
         const sections = records.map(smartChartRecordSections);
         const all = (key) => sections.flatMap((section) => section[key] || []);
@@ -4390,29 +4484,20 @@ NIL`)}`;
           patient.customDiagnosis || patient.diagnosis || "",
           ...all("diagnosis")
         ], 5);
-        const investigationItems = smartChartSnapshotInvestigationItems(records);
-        const vitalsItems = uniqueConciseItems(smartChartVitalsRows(records).map((row) => `${row.label}: ${row.text}`), 4);
-        const snapshot = [
-          ["Allergies", uniqueConciseItems(all("allergies"), 4)],
-          ["Vitals", vitalsItems],
-          ["Diagnosis / Problem List", diagnosisItems],
-          ["Recent Course", uniqueConciseItems(all("course"), 5)],
-          ["Key Investigations", investigationItems],
-          ["Current / Recent Medicines", uniqueConciseItems([...all("medicines"), ...all("prescription")], 5)],
-          ["Advice / Follow-up", uniqueConciseItems(all("advice"), 5)]
-        ];
+        const allergies = uniqueConciseItems(all("allergies"), 6);
+        const courseItems = uniqueConciseItems(all("course"), 5);
+        const investigationGroups = smartChartInvestigationGroups(records);
+        const medicineGroups = smartChartMedicationGroups(records);
+        const adviceItems = uniqueConciseItems(all("advice"), 5);
         return `
           <section class="patient-snapshot">
-            <h2>Patient Snapshot</h2>
             <div class="snapshot-grid">
-              ${snapshot.map(([title, items]) => `
-                <div class="snapshot-item">
-                  <h3>${escapeHtml(title)}</h3>
-                  ${items.length
-                    ? `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`
-                    : `<div class="snapshot-empty">No clear saved information.</div>`}
-                </div>
-              `).join("")}
+              ${smartChartSnapshotCardHtml("Allergies", smartChartSnapshotListHtml(allergies), "allergy-card")}
+              ${smartChartSnapshotCardHtml("Diagnosis / Problem List", smartChartSnapshotListHtml(diagnosisItems))}
+              ${smartChartSnapshotCardHtml("Recent Course", smartChartSnapshotListHtml(courseItems))}
+              ${smartChartSnapshotCardHtml("Key Investigations", smartChartDateGroupsHtml(investigationGroups))}
+              ${smartChartSnapshotCardHtml("Current / Recent Medicines", smartChartDateGroupsHtml(medicineGroups))}
+              ${smartChartSnapshotCardHtml("Advice / Follow-up", smartChartSnapshotListHtml(adviceItems))}
             </div>
           </section>
         `;
