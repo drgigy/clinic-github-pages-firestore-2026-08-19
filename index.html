@@ -2489,7 +2489,12 @@
       }
       function applyRecordPatientIdentityFromNote(patient) {
         if (!patient) return {};
-        const identity = collectRecordPatientIdentityFromNote();
+        const draftFields = document.getElementById("recordDraftName") ? collectRecordPatientDraftFields() : {};
+        const draftIdentity = ["name", "age", "sex", "mobile", "patientId"].reduce((identity, key) => {
+          if (draftFields[key]) identity[key] = draftFields[key];
+          return identity;
+        }, {});
+        const identity = { ...collectRecordPatientIdentityFromNote(), ...draftIdentity };
         Object.entries(identity).forEach(([key, value]) => {
           if (value) patient[key] = value;
         });
