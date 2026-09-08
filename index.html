@@ -1080,6 +1080,13 @@
               </div>
               <div id="doctorCredentials" class="credentials-editor" contenteditable="true" role="textbox" aria-label="Doctor credentials" data-placeholder="Doctor credentials"></div>
             </label>
+            <label class="settings-check">
+              <input id="malayalamInstructionsToggle" type="checkbox" />
+              <span>
+                <strong>Malayalam instructions</strong>
+                <small>Include Malayalam patient instruction lines in visit notes and prescription previews.</small>
+              </span>
+            </label>
             <label class="settings-block">
               Reusable patient comments
               <div class="settings-grid">
@@ -1439,6 +1446,7 @@
         diagnoses: [],
         staffTests: undefined,
         clinicName: "",
+        malayalamInstructions: true,
         clinicNameStyle: parseStoredObject(clinicNameStyleStore, { size: "medium", color: "#17222b" })
       };
       let activeRecordPatientId = "";
@@ -1920,6 +1928,7 @@
             diagnoses: [],
             staffTests: undefined,
             clinicName: "",
+            malayalamInstructions: true,
             clinicNameStyle: parseStoredObject(clinicNameStyleStore, { size: "medium", color: "#17222b" }),
             ...(snapshot.exists() ? snapshot.data() : {})
           };
@@ -1939,6 +1948,7 @@
             clinicNameEditor.innerHTML = clinicSettings.clinicName || "";
           }
           if (!$("#settingsModal").classList.contains("open")) setClinicNameStyleControls();
+          if (!$("#settingsModal").classList.contains("open")) setMalayalamInstructionControl();
           renderCommentSelects();
           renderDiagnosisSelects();
           renderSettingsComments();
@@ -2070,6 +2080,13 @@
           <span class="settings-comment-pill">${escapeHtml(test)} <button type="button" data-remove-staff-test="${escapeHtml(test)}" aria-label="Remove ${escapeHtml(test)}">&times;</button></span>
         `).join("") : `<span class="meta">No tests added.</span>`;
       }
+      function malayalamInstructionsEnabled() {
+        return clinicSettings.malayalamInstructions !== false;
+      }
+      function setMalayalamInstructionControl() {
+        const toggle = $("#malayalamInstructionsToggle");
+        if (toggle) toggle.checked = malayalamInstructionsEnabled();
+      }
       async function saveClinicSettingsPatch(patch) {
         clinicSettings = { ...clinicSettings, ...patch };
         if (patch.doctorCredentials !== undefined) writeStore(doctorCredentialsStore, patch.doctorCredentials || "");
@@ -2081,6 +2098,7 @@
         }
         if (patch.clinicName !== undefined) writeStore(clinicNameStore, patch.clinicName || "");
         if (patch.clinicNameStyle !== undefined) writeStore(clinicNameStyleStore, JSON.stringify(clinicNameStyle()));
+        if (patch.malayalamInstructions !== undefined) setMalayalamInstructionControl();
         await setDoc(userSettingsDoc(), { ...patch, updatedAt: new Date().toISOString() }, { merge: true });
         renderCommentSelects();
         renderDiagnosisSelects();
@@ -2670,6 +2688,31 @@
           addon: "Add On"
         }[mode] || "Visit note";
       }
+      function prescriptionLanguagePrompt() {
+        if (malayalamInstructionsEnabled()) {
+          return `Use this prescription format:
+1. Tablet Drug name dose
+   Clear English patient instruction without repeating the medicine name.
+   Malayalam patient instruction without repeating the medicine name.`;
+        }
+        return `Use this prescription format:
+1. Tablet Drug name dose
+   Clear English patient instruction without repeating the medicine name.
+
+Do not include translated patient instruction lines. Keep prescription output in English only.`;
+      }
+      function malayalamPromptOverride() {
+        return malayalamInstructionsEnabled()
+          ? ""
+          : "\nClinic setting: translated patient instruction lines are off. Prescription medicines should include the medicine name, dose, and English instruction only.\n";
+      }
+      function languageAdjustedAmbientPrompt(prompt) {
+        if (malayalamInstructionsEnabled()) return prompt;
+        return String(prompt || "")
+          .split("\n")
+          .filter((line) => !/Malayalam|[\u0D00-\u0D7F]/i.test(line))
+          .join("\n");
+      }
       function ambientPrompt(patient, mode = activeAmbientMode) {
         const context = `Patient context:
 Name: ${patient?.name || ""}
@@ -2677,7 +2720,7 @@ ID: ${patient ? patientDisplayId(patient) : ""}
 Mobile: ${patient?.mobile || ""}
 Diagnosis/main symptom: ${patient?.diagnosis || ""}`;
         if (isPendingDoctorPatient(patient) && mode === "visit") {
-          return `You are a clinical note assistant helping a doctor create a concise OPD medical note from ambient audio for a new unregistered patient.
+          return languageAdjustedAmbientPrompt(`You are a clinical note assistant helping a doctor create a concise OPD medical note from ambient audio for a new unregistered patient.
 
 The doctor may dictate patient registration details and the consultation together.
 Extract patient details only if dictated. Do not guess.
@@ -2724,13 +2767,20 @@ Vitals rule:
 - If height and weight are both dictated and BMI is not dictated, calculate BMI from height and weight and add it to the same line.
 - Do not guess missing vitals.
 
+Review of Investigations rule:
+- Keep every dictated investigation value with its unit. If a lab value is dictated without a unit, add the conventional unit where clinically standard.
+
+Prescription rule:
+${prescriptionLanguagePrompt()}
+${malayalamPromptOverride()}
+
 Do not include patient name, age, sex, mobile number, UHID, or administrative comments inside the note unless clinically relevant.
 Never add clinical information that was not spoken.
 
-${context}`;
+${context}`);
         }
         if (mode === "addon") {
-          return `You are a clinical review add-on assistant helping a doctor create a separate review draft note after an OPD consultation.
+          return languageAdjustedAmbientPrompt(`You are a clinical review add-on assistant helping a doctor create a separate review draft note after an OPD consultation.
 
 Correct spelling and grammar. Keep the original meaning exactly.
 Do not add, infer, assume, or hallucinate clinical information.
@@ -2766,19 +2816,18 @@ Under Review of Investigations, arrange investigations like the main visit-note 
 - for blood reports, include each value on a separate line and add conventional units when absent
 
 If medicines are dictated, use Prescription and format every medicine like this:
-1. Tablet Drug name dose
-   Clear English patient instruction without repeating the medicine name.
-   Malayalam patient instruction without repeating the medicine name.
+${prescriptionLanguagePrompt()}
+${malayalamPromptOverride()}
 
 If advice, review plans, follow-up advice, precautions, or investigations to be done are dictated, place them under Advice / Instructions.
 Do not create Chief Complaints, History of Present Illness, Examination, Diagnosis, or Orders headings.
 
 Never add clinical information that was not spoken.
 
-${context}`;
+${context}`);
         }
         if (mode === "prescription") {
-          return `You are a clinical prescription assistant helping a doctor structure a dictated prescription.
+          return languageAdjustedAmbientPrompt(`You are a clinical prescription assistant helping a doctor structure a dictated prescription.
 
 Correct spelling and grammar. Correct obvious medical spelling errors.
 Do not add, infer, assume, or hallucinate medicines or instructions.
@@ -2786,11 +2835,9 @@ Do not remove any dictated medicine or instruction.
 Preserve dictated drug names exactly as brand names when brand names are spoken. Do not convert brand names to generic names.
 Return a single plain text prescription only. Do not return JSON. Do not use markdown fences.
 
-Format every prescribed medicine as a numbered list, one medicine entry at a time:
-1. Tablet Drug name dose
-   Clear English patient instruction without repeating the medicine name.
-   Malayalam patient instruction without repeating the medicine name.
-2. ...
+Format every prescribed medicine as a numbered list, one medicine entry at a time.
+${prescriptionLanguagePrompt()}
+${malayalamPromptOverride()}
 
 Include dose, frequency, route, timing, and duration only if dictated.
 Always write tablet medicines as "Tablet", not "Tab". When a tablet count is dictated, write it with the timing as "morning 1 tablet", "noon 1 tablet", "night 1 tablet". Never write bare timing counts like "morning 1" or "night 1".
@@ -2824,7 +2871,7 @@ If the doctor dictates the word "orders", do not create an Orders heading. Route
 
 Never add clinical information that was not spoken.
 
-${context}`;
+${context}`);
         }
         if (mode === "certificate") {
           return `You are a medical certificate drafting assistant.
@@ -2862,7 +2909,7 @@ Never add clinical information that was not spoken.
 
 ${context}`;
         }
-        return `You are a clinical note assistant helping a doctor create a concise OPD medical note from ambient audio.
+        return languageAdjustedAmbientPrompt(`You are a clinical note assistant helping a doctor create a concise OPD medical note from ambient audio.
 
 Correct spelling and grammar. Keep the original meaning exactly.
 Do not add, infer, assume, or hallucinate clinical information.
@@ -2911,10 +2958,9 @@ Formatting rules:
 - Prescription: include only medicines that are prescribed, newly started, changed, or explicitly continued. Do not duplicate the Current Medications section unless those medicines are explicitly prescribed or continued in the visit.
 - Advice / Instructions: include investigations, lab tests, imaging, EEG/NCS, scans, review plans, follow-up advice, precautions, certificates, and other non-medicine orders line by line.
 - Dictated "orders" rule: medicines go under Prescription; everything else goes under Advice / Instructions. Do not duplicate the same dictated order in both sections.
-- Inside Prescription, use exactly this compact format for each medicine:
-  1. Tablet/Cap/Syrup/Inj brand name dose
-     Clear English patient instruction with timing, duration, and food/administration instruction, without repeating the medicine name.
-     Malayalam patient instruction for the same medicine, without repeating the medicine name.
+${prescriptionLanguagePrompt()}
+${malayalamPromptOverride()}
+- Inside Prescription, include timing, duration, and food/administration instruction below the medicine name if dictated.
 - Do not write the word "Malayalam" before the Malayalam text. Put the Malayalam instruction directly below the English instruction.
 - For each prescription medicine, write the medicine name and dose once in the numbered medicine line. The English instruction below it must not repeat the medicine name. The Malayalam instruction below it must not repeat the medicine name.
 - Do not translate medicine brand names into Malayalam. Keep medicine names and doses in English in the numbered medicine line only.
@@ -2978,7 +3024,7 @@ Example style for Review of Investigations:
 
 Never add clinical information that was not spoken.
 
-${context}`;
+${context}`);
       }
       function blobToBase64(blob) {
         return new Promise((resolve, reject) => {
@@ -4594,13 +4640,32 @@ Yours sincerely,
           ["AST", /\b(?:ast|sgot)\b\s*[:=\-]?\s*(\d[\d,]*(?:\.\d+)?)(?:\s*(u\/?l|iu\/?l))?/ig]
         ];
       }
+      function defaultSmartChartBloodUnit(label) {
+        return {
+          Hemoglobin: "g/dL",
+          WBC: "cells/cumm",
+          Platelets: "lakhs/cumm",
+          Creatinine: "mg/dL",
+          Urea: "mg/dL",
+          Sodium: "mEq/L",
+          Potassium: "mEq/L",
+          ESR: "mm/hr",
+          CRP: "mg/L",
+          TSH: "mIU/L",
+          HbA1c: "%",
+          FBS: "mg/dL",
+          PPBS: "mg/dL",
+          ALT: "U/L",
+          AST: "U/L"
+        }[label] || "";
+      }
       function smartChartBloodSeries(records) {
         const series = new Map();
         smartChartBloodRows(records).forEach((row) => {
           const points = series.get(row.test) || [];
           points.push({
             value: row.value,
-            unit: row.unit || "",
+            unit: row.unit || defaultSmartChartBloodUnit(row.test),
             date: row.date,
             label: row.label
           });
@@ -4628,7 +4693,7 @@ Yours sincerely,
       function smartChartSnapshotInvestigationItems(records) {
         const chartItems = smartChartInvestigationRows(records).map((row) => `${row.label}: ${row.test} - ${row.text}`);
         const bloodItems = smartChartBloodRows(records).map((row) => {
-          const unit = row.unit || (row.test === "Hemoglobin" ? "g/dL" : "");
+          const unit = row.unit || defaultSmartChartBloodUnit(row.test);
           return `${row.label}: ${row.test} ${row.value}${unit ? ` ${unit}` : ""}`;
         });
         const groupedItems = [];
@@ -4703,7 +4768,7 @@ Yours sincerely,
             if (next) index += 1;
           }
           smartChartBloodRows([record]).forEach((row) => {
-            const unit = row.unit || (row.test === "Hemoglobin" ? "g/dL" : "");
+            const unit = row.unit || defaultSmartChartBloodUnit(row.test);
             items.push(`${row.test}: ${row.value}${unit ? ` ${unit}` : ""}`);
           });
           smartChartInvestigationRows([record]).forEach((row) => {
@@ -5485,12 +5550,13 @@ Yours sincerely,
           .filter((line) => !isDemographicLine(line) && !isPrescriptionSectionHeading(line));
         const { medicineItems, adviceLines } = splitPrescriptionLines(lines);
         const dateText = activeRecordCreatedAt ? dateLabel(activeRecordCreatedAt.slice(0, 10)) : dateLabel(localDateKey());
+        const shouldShowMalayalam = malayalamInstructionsEnabled();
         const medicineRows = medicineItems.map((item, index) => {
           const details = prescriptionLineDetails(item.line);
           const englishLine = descriptivePrescriptionLine(details, item.line, item.extra || []);
-          const malayalamLines = (item.malayalam || [])
+          const malayalamLines = shouldShowMalayalam ? (item.malayalam || [])
             .map((line) => `<div class="prescription-malayalam">${escapeHtml(line)}</div>`)
-            .join("");
+            .join("") : "";
           return `
             <div class="prescription-item">
               <div class="prescription-number">${index + 1}.</div>
@@ -7482,7 +7548,8 @@ Yours sincerely,
             color: $("#clinicNameColor").value
           };
           const credentials = cleanCredentialsHtml($("#doctorCredentials").innerHTML);
-          await saveClinicSettingsPatch({ clinicName, clinicNameStyle, doctorCredentials: credentials });
+          const malayalamInstructions = $("#malayalamInstructionsToggle")?.checked !== false;
+          await saveClinicSettingsPatch({ clinicName, clinicNameStyle, doctorCredentials: credentials, malayalamInstructions });
           $("#settingsStatus").textContent = "Settings saved.";
           closeSettingsModal();
         }
