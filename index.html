@@ -3875,8 +3875,12 @@ ${context}`;
             const className = inAllergies ? ` class="allergy-alert"` : "";
             return `<strong${className}>${escaped}</strong>`;
           }
-          return inAllergies && line.trim() ? `<span class="allergy-alert">${escaped}</span>` : escaped;
+          const formatted = formatVitalsLabelsHtml(escaped);
+          return inAllergies && line.trim() ? `<span class="allergy-alert">${formatted}</span>` : formatted;
         }).join("<br>");
+      }
+      function formatVitalsLabelsHtml(escapedLine) {
+        return String(escapedLine || "").replace(/\b(BP|Pulse rate|Oxygen saturation|Height|Weight|BMI)\s*:/gi, (match, label) => `<strong>${label}:</strong>`);
       }
       function doctorDraftPatientLineHtml(patient = {}) {
         return `<div class="draft-patient-line">
