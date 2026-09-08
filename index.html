@@ -3147,7 +3147,7 @@ ${context}`;
       function updateTemplateButtonVisibility() {
         const menu = $("#recordTemplateMenu");
         if (!menu) return;
-        menu.hidden = activeRecordView !== "all";
+        menu.hidden = !activeRecordPatient();
       }
       function clearActiveAddOn(resetAudio = false) {
         if (!activeAddOn) return;
@@ -7372,7 +7372,7 @@ Yours sincerely,
         }
         if (button.dataset.newRecord && featureEnabled("typedNote")) createNewMedicalEntry();
         if (button.dataset.ambientRecord && featureEnabled("woyzNote")) createNewMedicalEntry("ambient");
-        if (button.dataset.recordTemplate && featureEnabled("woyzNote")) startDocumentTemplateDraft(button.dataset.recordTemplate);
+        if (button.dataset.recordTemplate) startDocumentTemplateDraft(button.dataset.recordTemplate);
         if (button.dataset.openDraftRecord) openDraftMedicalEntry(button.dataset.openDraftRecord);
         if (button.dataset.openRecord) {
           await openMedicalRecord(activeRecordPatientId, button.dataset.openRecord);
