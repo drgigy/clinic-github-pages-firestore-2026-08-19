@@ -5742,6 +5742,13 @@ Treatment / Advice:
           </div>
         `;
       }
+      function visitNotePrintSourceHtml() {
+        const activeSavedRecord = medicalRecords.find((record) => record.id === activeRecordId);
+        const savedPrintSource = activeSavedRecord?.docs?.printVisit || "";
+        return malayalamInstructionsEnabled()
+          ? (activeRecordDocs.printVisit || savedPrintSource || activeRecordDocs.visit || $("#medicalNoteText").innerHTML || "")
+          : (activeRecordDocs.visit || $("#medicalNoteText").innerHTML || "");
+      }
       function documentPrintTitle(mode = "certificate") {
         return mode === "reply" ? "REPLY LETTER" : "MEDICAL CERTIFICATE";
       }
@@ -5903,7 +5910,7 @@ Treatment / Advice:
           }
           printContent.innerHTML = formatPrescriptionPrintHtml(prescriptionHtml, patient);
         } else if (previewType === "visit") {
-          const rawHtml = activeRecordDocs.visit || $("#medicalNoteText").innerHTML || "";
+          const rawHtml = visitNotePrintSourceHtml();
           printContent.innerHTML = formatVisitNotePrintHtml(rawHtml, patient);
         } else {
           const rawHtml = activeRecordDocs.printVisit || activeRecordDocs.visit || $("#medicalNoteText").innerHTML || "";
