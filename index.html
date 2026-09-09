@@ -4003,9 +4003,10 @@ ${context}`);
       function stripSavedVisitChromeHtml(value) {
         const container = document.createElement("div");
         container.innerHTML = String(value || "");
-        container.querySelectorAll(".draft-patient-line").forEach((node) => node.remove());
+        container.querySelectorAll(".visit-note-title, .draft-patient-line").forEach((node) => node.remove());
         const lines = htmlToPlainText(container.innerHTML).split(/\r?\n/).map((line) => line.trim());
         while (lines.length && !lines[0]) lines.shift();
+        if (/^visit note\s*vitals\s*:?/i.test(lines[0] || "")) lines[0] = lines[0].replace(/^visit note\s*/i, "");
         if (/^visit note\s*:?\s*$/i.test(lines[0] || "")) lines.shift();
         while (lines.length && /^(patient\s+name|name|age|sex|uhid|id|mobile|mobile\s+number)\s*:/i.test(lines[0] || "")) lines.shift();
         while (lines.length && !lines[0]) lines.shift();
@@ -4042,7 +4043,7 @@ ${context}`);
           remove.add(block.index);
           if (isEmptyVitalsLine(lines[block.index + 1] || "")) remove.add(block.index + 1);
         });
-        return compactVisitPatientHeaderHtml(plainTextToHtml(lines.filter((line, index) => !remove.has(index)).join("\n")), activeRecordPatient());
+        return plainTextToHtml(lines.filter((line, index) => !remove.has(index)).join("\n"));
       }
       function blankVisitNoteTemplateHtml(patient = {}) {
         return `<span class="visit-note-title">Visit Note</span>${doctorDraftPatientLineHtml(patient)}${plainTextToHtml(`Vitals:
