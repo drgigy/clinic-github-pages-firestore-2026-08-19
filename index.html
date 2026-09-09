@@ -1243,14 +1243,7 @@
               <button class="secondary" type="button" data-record-template="certificate" data-feature="printCertificate" role="menuitem">Medical Certificate</button>
             </div>
           </div>
-          <div class="print-menu">
-            <button class="secondary" type="button" id="recordPrintMenuBtn" aria-haspopup="true">Preview</button>
-            <div class="print-menu-panel" role="menu" aria-label="Preview options">
-              <button class="secondary" type="button" data-record-print="prescription" data-feature="printPrescription" role="menuitem">Prescription</button>
-              <button class="secondary" type="button" data-record-print="reply" data-feature="printReply" role="menuitem">Reply</button>
-              <button class="secondary" type="button" data-record-print="certificate" data-feature="printCertificate" role="menuitem">Certificate</button>
-            </div>
-          </div>
+          <button class="secondary" type="button" id="recordPreviewBtn" hidden>Preview</button>
           <button class="secondary" type="button" id="recordAddOnBtn" data-feature="woyzNote" hidden>Add On</button>
           <button class="secondary smart-chart-button" type="button" id="recordSummaryBtn" data-feature="smartChart" style="background:#dc2626;color:#fff;box-shadow:inset 0 0 0 2px #991b1b,0 1px 4px rgba(153,27,27,.22);">Smart Chart</button>
           <button class="secondary" type="button" id="recordMyVoiceSummaryBtn" data-feature="smartChart">Summary</button>
@@ -3157,6 +3150,7 @@ ${context}`);
         renderAmbientDock();
         updateAddOnButtonVisibility();
         updateTemplateButtonVisibility();
+        updatePreviewButtonVisibility();
         const starts = document.querySelectorAll("[data-ambient-start]");
         const pauses = document.querySelectorAll("[data-ambient-pause]");
         const stops = document.querySelectorAll("[data-ambient-stop]");
@@ -3195,6 +3189,20 @@ ${context}`);
         const menu = $("#recordTemplateMenu");
         if (!menu) return;
         menu.hidden = !activeRecordPatient();
+      }
+      function selectedRecordPreviewType() {
+        if (!["single", "draft"].includes(activeRecordView)) return "";
+        if (activeRecordSource === "ambient" && activeAmbientMode === "reply") return "reply";
+        if (activeRecordSource === "ambient" && activeAmbientMode === "certificate") return "certificate";
+        if (activeRecordSource === "ambient" && activeAmbientMode === "prescription") return "prescription";
+        const activeSavedRecord = medicalRecords.find((record) => record.id === activeRecordId);
+        const sourceHtml = activeRecordDocs.printVisit || activeSavedRecord?.docs?.printVisit || activeRecordDocs.visit || $("#medicalNoteText")?.innerHTML || "";
+        return extractPrescriptionFromVisitHtml(sourceHtml) ? "prescription" : "";
+      }
+      function updatePreviewButtonVisibility() {
+        const button = $("#recordPreviewBtn");
+        if (!button) return;
+        button.hidden = !selectedRecordPreviewType();
       }
       function clearActiveAddOn(resetAudio = false) {
         if (!activeAddOn) return;
@@ -5614,6 +5622,35 @@ Treatment / Advice:
           </div>
         `;
       }
+      function documentPrintTitle(mode = "certificate") {
+        return mode === "reply" ? "REPLY LETTER" : "MEDICAL CERTIFICATE";
+      }
+      function formatDocumentPrintHtml(html, patient, mode = "certificate") {
+        const title = documentPrintTitle(mode);
+        const dateText = activeRecordCreatedAt ? dateLabel(activeRecordCreatedAt.slice(0, 10)) : dateLabel(localDateKey());
+        const bodyHtml = mode === "certificate"
+          ? stripCertificateDemographics(stripDuplicateDocumentTitle(html, ambientModeLabel(mode)))
+          : stripDuplicateDocumentTitle(html, ambientModeLabel(mode));
+        return `
+          <div class="prescription-sheet document-print-sheet">
+            <div class="prescription-banner">${medicalPrintSignature("prescription-header-signature")}</div>
+            <div class="prescription-content">
+              <div class="prescription-patient-plain">
+                <h1>${escapeHtml(patient?.name || "-")}</h1>
+                <div class="prescription-patient-meta">
+                  Age: ${escapeHtml(patient?.age ? `${patient.age} years` : "-")} |
+                  Sex: ${escapeHtml(patient?.sex || "-")} |
+                  ID: ${escapeHtml(patient ? patientDisplayId(patient) : "-")} |
+                  ${escapeHtml(dateText)}
+                </div>
+              </div>
+              <div class="prescription-rx-title">${title}</div>
+              <div class="document-print-body">${bodyHtml || ""}</div>
+              ${medicalPrintSignature("prescription-signature")}
+            </div>
+          </div>
+        `;
+      }
       function activeMedicalPrintBody() {
         const rawHtml = ["single", "draft"].includes(activeRecordView)
           ? (activeRecordDocs.printVisit || activeRecordDocs.visit || "No notes entered.")
@@ -5631,7 +5668,7 @@ Treatment / Advice:
         if (activeRecordView !== "all" && activeRecordSource === "ambient" && ["prescription", "certificate", "reply"].includes(activeAmbientMode)) {
           const withoutTitle = stripDuplicateDocumentTitle(rawHtml, ambientModeLabel(activeAmbientMode));
           if (activeAmbientMode === "prescription") return formatPrescriptionPrintHtml(withoutTitle, activeRecordPatient());
-          return activeAmbientMode === "certificate" ? stripCertificateDemographics(withoutTitle) : withoutTitle;
+          return formatDocumentPrintHtml(withoutTitle, activeRecordPatient(), activeAmbientMode);
         }
         return rawHtml;
       }
@@ -5689,6 +5726,8 @@ Treatment / Advice:
       function prescriptionHtmlForCurrentPatient(patient) {
         const fragments = [];
         const seen = new Set();
+        const activeSavedRecord = medicalRecords.find((record) => record.id === activeRecordId);
+        const savedPrintSource = activeSavedRecord?.docs?.printVisit || "";
         const addFragment = (html) => {
           const text = htmlToPlainText(html || "").trim();
           const key = text.toLowerCase();
@@ -5696,7 +5735,7 @@ Treatment / Advice:
           seen.add(key);
           fragments.push(html);
         };
-        const activePrescriptionSource = activeRecordDocs.printVisit || activeRecordDocs.visit || $("#medicalNoteText").innerHTML;
+        const activePrescriptionSource = activeRecordDocs.printVisit || savedPrintSource || activeRecordDocs.visit || $("#medicalNoteText").innerHTML;
         addFragment(activeRecordView !== "all" && activeRecordSource === "ambient" && activeAmbientMode === "prescription"
           ? stripDuplicateDocumentTitle(activePrescriptionSource, "Prescription")
           : extractPrescriptionFromVisitHtml(activePrescriptionSource));
@@ -5724,6 +5763,30 @@ Treatment / Advice:
           return;
         }
         $("#medicalPrintContent").innerHTML = formatPrescriptionPrintHtml(prescriptionHtml, patient);
+        document.body.classList.add("print-medical", "print-prescription");
+        showPrintPreview();
+      }
+      function previewSelectedMedicalRecord() {
+        const patient = activeRecordPatient();
+        if (!patient) return;
+        const previewType = selectedRecordPreviewType();
+        if (!previewType) return;
+        if (["single", "draft"].includes(activeRecordView)) persistCurrentRecordTab();
+        const printContent = $("#medicalPrintContent");
+        printContent?.classList.remove("smart-print-content");
+        if (previewType === "prescription") {
+          const prescriptionHtml = prescriptionHtmlForCurrentPatient(patient);
+          if (!prescriptionHtml) {
+            alert("No prescription section found in this visit note.");
+            return;
+          }
+          printContent.innerHTML = formatPrescriptionPrintHtml(prescriptionHtml, patient);
+        } else {
+          const rawHtml = activeRecordDocs.printVisit || activeRecordDocs.visit || $("#medicalNoteText").innerHTML || "";
+          const withoutTitle = stripDuplicateDocumentTitle(rawHtml, ambientModeLabel(previewType));
+          printContent.innerHTML = formatDocumentPrintHtml(withoutTitle, patient, previewType);
+        }
+        document.body.classList.remove("print-smart-chart");
         document.body.classList.add("print-medical", "print-prescription");
         showPrintPreview();
       }
@@ -5997,6 +6060,7 @@ Treatment / Advice:
         if (!patient) return;
         if (["single", "draft"].includes(activeRecordView)) persistCurrentRecordTab();
         const isPrescriptionPrint = activeRecordView !== "all" && activeRecordSource === "ambient" && activeAmbientMode === "prescription";
+        const isDocumentPrint = activeRecordView !== "all" && activeRecordSource === "ambient" && ["certificate", "reply"].includes(activeAmbientMode);
         const isSmartPrintView = ["smart", "myvoice"].includes(activeRecordView);
         const metaText = isSmartPrintView
           ? ""
@@ -6005,7 +6069,7 @@ Treatment / Advice:
             : `ID: ${patientDisplayId(patient)} | Mobile: ${patient.mobile || "-"} | ${activeRecordSource === "ambient" ? ambientModeLabel(activeAmbientMode) : "Note"}: ${dateTimeLabel(activeRecordCreatedAt)}`;
         const printContent = $("#medicalPrintContent");
         printContent.classList.toggle("smart-print-content", isSmartPrintView);
-        printContent.innerHTML = isPrescriptionPrint
+        printContent.innerHTML = (isPrescriptionPrint || isDocumentPrint)
           ? activeMedicalPrintBody()
           : isSmartPrintView
             ? activeMedicalPrintBody()
@@ -6015,7 +6079,7 @@ Treatment / Advice:
             <div>${activeMedicalPrintBody()}</div>
             ${medicalPrintFooter()}
           `;
-        document.body.classList.toggle("print-prescription", isPrescriptionPrint);
+        document.body.classList.toggle("print-prescription", isPrescriptionPrint || isDocumentPrint);
         document.body.classList.toggle("print-smart-chart", isSmartPrintView);
         document.body.classList.add("print-medical");
         showPrintPreview();
@@ -7519,9 +7583,7 @@ Treatment / Advice:
         if (button.id === "recordSaveBtn") await saveActiveMedicalRecord();
         if (button.id === "recordSaveCloseBtn") { await saveActiveMedicalRecord(); closeMedicalRecordScreen(); }
         if (button.dataset.printSmartChart) printActiveMedicalRecord();
-        if (button.dataset.recordPrint === "prescription") printPrescriptionFromVisitNote();
-        if (button.dataset.recordPrint === "reply") window.printReply ? window.printReply() : printActiveMedicalRecord();
-        if (button.dataset.recordPrint === "certificate") window.printCertificate ? window.printCertificate() : printActiveMedicalRecord();
+        if (button.id === "recordPreviewBtn") previewSelectedMedicalRecord();
         if (button.id === "closePrintPreviewBtn") closePrintPreview();
         if (button.id === "recordAddOnBtn") startRecordAddOn();
         if (button.id === "recordSummaryBtn") showSmartChart();
@@ -7899,8 +7961,7 @@ Treatment / Advice:
   }
 
   function installButtons() {
-    addButton("Preview Certificate", "certificate");
-    addButton("Preview Reply", "reply");
+    return;
   }
 
   window.printCertificate = function () { openPrintWindow("certificate"); };
