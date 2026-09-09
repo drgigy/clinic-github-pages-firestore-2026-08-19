@@ -3561,12 +3561,16 @@ ${context}`);
       }
       function parseUnregisteredVisitOutput(text) {
         const raw = String(text || "").trim();
-        const jsonText = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+        const unfenced = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+        const start = unfenced.indexOf("{");
+        const end = unfenced.lastIndexOf("}");
+        const jsonText = start >= 0 && end > start ? unfenced.slice(start, end + 1) : unfenced;
         try {
           const parsed = JSON.parse(jsonText);
           const patient = parsed?.patient && typeof parsed.patient === "object" ? parsed.patient : {};
           const age = String(patient.age || "").replace(/\s*years?$/i, "").trim();
           return {
+            valid: true,
             patient: {
               name: String(patient.name || "").trim(),
               age,
@@ -3580,8 +3584,24 @@ ${context}`);
             note: String(parsed?.note || "").trim()
           };
         } catch {
-          return { patient: {}, note: raw };
+          const noteMatch = unfenced.match(/"note"\s*:\s*"([\s\S]*?)"\s*(?:,\s*"[^"]+"\s*:|}\s*$)/);
+          const note = noteMatch?.[1]
+            ? noteMatch[1].replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\").trim()
+            : raw;
+          return { valid: false, patient: {}, note };
         }
+      }
+      function cleanupEmbeddedUnregisteredVisitJson(patient, html) {
+        const parsed = parseUnregisteredVisitOutput(htmlToPlainText(html || ""));
+        if (!parsed.valid || !parsed.note) return html;
+        if (isPendingDoctorPatient(patient)) {
+          const { diagnosis: _ignoredDiagnosis, ...patientIdentity } = parsed.patient;
+          Object.assign(patient, patientIdentity);
+          setRecordPatientDraftFields(patient);
+          syncPendingDoctorDraft(patient);
+          updateRecordPatientHeader(patient);
+        }
+        return `<span class="visit-note-title">Visit Note</span>${isPendingDoctorPatient(patient) ? doctorDraftPatientLineHtml(patient) : ""}${plainTextToHtml(parsed.note)}`;
       }
       async function processAmbientAudio() {
         if (adminNoteSettings.speechEnabled === false) {
@@ -3605,6 +3625,8 @@ ${context}`);
           const audioBase64 = await blobToBase64(ambientAudioBlob);
           let note = await requestAmbientAuthorizationNote(apiKey, patient, processingMode, audioBase64, ambientAudioBlob.type);
           note = ensureDocumentTitleText(note, processingMode);
+          const unregisteredVisitOutput = processingMode === "visit" ? parseUnregisteredVisitOutput(note) : null;
+          if (unregisteredVisitOutput?.valid && unregisteredVisitOutput.note) note = unregisteredVisitOutput.note;
           if (activeAddOn) {
             const reviewText = formatAddOnReviewText(note);
             const reviewDraft = draftRecordById(activeAddOn.draftId) || draftMedicalRecord;
@@ -3622,7 +3644,7 @@ ${context}`);
             return;
           }
           if (isPendingDoctorPatient(patient) && processingMode === "visit") {
-            const extracted = parseUnregisteredVisitOutput(note);
+            const extracted = unregisteredVisitOutput || parseUnregisteredVisitOutput(note);
             const { diagnosis: _ignoredDiagnosis, ...patientIdentity } = extracted.patient;
             Object.assign(patient, patientIdentity);
             setRecordPatientDraftFields(patient);
@@ -3747,6 +3769,7 @@ ${context}`);
         activeAmbientMode = draft.recordKind || "visit";
         activeRecordType = "visit";
         activeRecordDocs = { visit: draft.docs?.visit || draft.noteHtml || (draft.note ? plainTextToHtml(draft.note) : "") };
+        if (activeAmbientMode === "visit") activeRecordDocs.visit = cleanupEmbeddedUnregisteredVisitJson(patient, activeRecordDocs.visit);
         if (activeAmbientMode === "summary") activeRecordDocs.visit = formattedTreatmentSummaryHtml(activeRecordDocs.visit);
         else if (!["prescription", "certificate", "reply"].includes(activeAmbientMode)) activeRecordDocs.visit = boldVisitNoteHeadingsHtml(activeRecordDocs.visit);
         if (isPendingDoctorPatient(patient) && !activeRecordDocs.visit.includes("draft-patient-line")) {
