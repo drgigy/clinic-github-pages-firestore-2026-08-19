@@ -3970,7 +3970,9 @@ ${context}`);
         const line = String(escapedLine || "");
         const formatted = line
           .replace(/\b(BP|Pulse rate|Oxygen saturation|Height|Weight|BMI)\s*:/gi, (match, label) => `<strong>${label}:</strong>`)
-          .replace(/;\s*(?=<strong>(?:BP|Pulse rate|Oxygen saturation|Height|Weight|BMI):<\/strong>)/gi, `;<span class="vitals-gap"></span>`);
+          .replace(/;\s*(?=<strong>(?:BP|Pulse rate|Oxygen saturation|Height|Weight|BMI):<\/strong>)/gi, (match) => (
+            isEmptyVitalsLine(line) ? `;<span class="vitals-gap"></span>` : `${match} `
+          ));
         return /\b(BP|Pulse rate|Oxygen saturation|Height|Weight|BMI)\s*:/i.test(line) ? `<span class="vitals-line">${formatted}</span>` : formatted;
       }
       function doctorDraftPatientLineHtml(patient = {}) {
