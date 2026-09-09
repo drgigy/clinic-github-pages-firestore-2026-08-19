@@ -3624,9 +3624,9 @@ ${context}`);
           const processingMode = activeAmbientMode;
           const audioBase64 = await blobToBase64(ambientAudioBlob);
           let note = await requestAmbientAuthorizationNote(apiKey, patient, processingMode, audioBase64, ambientAudioBlob.type);
-          note = ensureDocumentTitleText(note, processingMode);
           const unregisteredVisitOutput = processingMode === "visit" ? parseUnregisteredVisitOutput(note) : null;
           if (unregisteredVisitOutput?.valid && unregisteredVisitOutput.note) note = unregisteredVisitOutput.note;
+          note = ensureDocumentTitleText(note, processingMode);
           if (activeAddOn) {
             const reviewText = formatAddOnReviewText(note);
             const reviewDraft = draftRecordById(activeAddOn.draftId) || draftMedicalRecord;
@@ -4017,9 +4017,11 @@ ${context}`);
           const next = lines[index + 1] || "";
           vitalsBlocks.push({ index, empty: isEmptyVitalsLine(next) });
         }
-        if (vitalsBlocks.length < 2 || !vitalsBlocks.some((block) => !block.empty)) return value;
+        if (vitalsBlocks.length < 2) return value;
+        const firstNonEmpty = vitalsBlocks.find((block) => !block.empty);
+        const keepIndex = firstNonEmpty ? firstNonEmpty.index : vitalsBlocks[0].index;
         const remove = new Set();
-        vitalsBlocks.filter((block) => block.empty).forEach((block) => {
+        vitalsBlocks.filter((block) => block.index !== keepIndex).forEach((block) => {
           remove.add(block.index);
           if (isEmptyVitalsLine(lines[block.index + 1] || "")) remove.add(block.index + 1);
         });
