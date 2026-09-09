@@ -4088,14 +4088,7 @@ NIL`)}`;
       }
       function documentTemplateText(patient = {}, mode = "reply") {
         if (mode === "certificate") {
-          return `Medical Certificate
-
-Patient Name: ${patient.name || ""}
-ID: ${patientDisplayId(patient) || ""}
-Mobile: ${patient.mobile || ""}
-Date: ${dateLabel(localDateKey())}
-
-This is to certify that
+          return `This is to certify that
 
 Diagnosis / Clinical Details:
 
@@ -4104,14 +4097,7 @@ Advice / Rest / Fitness:
 Purpose:
 `;
         }
-        return `Reply Letter
-
-Patient Name: ${patient.name || ""}
-ID: ${patientDisplayId(patient) || ""}
-Mobile: ${patient.mobile || ""}
-Date: ${dateLabel(localDateKey())}
-
-To:
+        return `To:
 
 Dear Doctor,
 
@@ -4154,18 +4140,27 @@ Treatment / Advice:
           .replace(/\n{3,}/g, "\n\n")
           .trim();
       }
+      function stripGeneratedDocumentTitleText(text = "", mode = "") {
+        const title = documentTitleForMode(mode);
+        if (!title) return String(text || "").trim();
+        const titlePattern = new RegExp(`^\\s*${title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*:?\\s*$`, "i");
+        return String(text || "")
+          .split(/\r?\n/)
+          .filter((line, index) => index !== 0 || !titlePattern.test(line.trim()))
+          .join("\n")
+          .replace(/\n{3,}/g, "\n\n")
+          .trim();
+      }
       function normalizeGeneratedDocumentText(text = "", mode = "") {
         let value = String(text || "").trim();
+        value = stripGeneratedDocumentTitleText(value, mode);
         if (mode === "reply") value = stripReplyLetterClosingText(value);
         if (mode === "certificate") value = stripGeneratedPatientDemographicsText(value);
         return value;
       }
       function ensureDocumentTitleText(text = "", mode = "") {
-        const title = documentTitleForMode(mode);
         const value = normalizeGeneratedDocumentText(text, mode);
-        if (!title || !value) return value;
-        const firstLine = value.split(/\r?\n/).find((line) => line.trim()) || "";
-        return firstLine.trim().toLowerCase() === title.toLowerCase() ? value : `${title}\n\n${value}`;
+        return value;
       }
       function startDocumentTemplateDraft(mode = "reply") {
         const patient = activeRecordPatient();
@@ -4326,6 +4321,9 @@ Treatment / Advice:
       }
       function timelineRecordBody(record) {
         const html = record.docs?.visit || record.noteHtml || "";
+        if (html && ["certificate", "reply"].includes(record.recordKind || "visit")) {
+          return stripDuplicateDocumentTitle(html, documentTitleForMode(record.recordKind || "visit") || ambientModeLabel(record.recordKind || "visit"));
+        }
         if (html) return boldVisitNoteHeadingsHtml(stripDuplicateEmptyVitalsHtml(html));
         return plainTextToHtml(record.note || "");
       }
@@ -6316,6 +6314,9 @@ Treatment / Advice:
           printVisit: record?.docs?.printVisit || ""
         };
         if (activeAmbientMode === "summary") activeRecordDocs.visit = formattedTreatmentSummaryHtml(activeRecordDocs.visit);
+        else if (["certificate", "reply"].includes(activeAmbientMode)) {
+          activeRecordDocs.visit = stripDuplicateDocumentTitle(activeRecordDocs.visit, documentTitleForMode(activeAmbientMode) || ambientModeLabel(activeAmbientMode));
+        }
         else if (!["prescription", "certificate", "reply"].includes(activeAmbientMode)) activeRecordDocs.visit = boldVisitNoteHeadingsHtml(activeRecordDocs.visit);
         if (!["prescription", "certificate", "reply", "summary"].includes(activeAmbientMode)) {
           activeRecordDocs.visit = stripSavedVisitChromeHtml(activeRecordDocs.visit);
