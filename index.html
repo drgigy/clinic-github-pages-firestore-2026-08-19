@@ -3996,6 +3996,17 @@ ${context}`);
         const remaining = lines.slice(endIndex).join("\n").trim();
         return `<span class="visit-note-title">Visit Note</span>${doctorDraftPatientLineHtml(identity)}${remaining ? plainTextToHtml(remaining) : ""}`;
       }
+      function stripSavedVisitChromeHtml(value) {
+        const container = document.createElement("div");
+        container.innerHTML = String(value || "");
+        container.querySelectorAll(".draft-patient-line").forEach((node) => node.remove());
+        const lines = htmlToPlainText(container.innerHTML).split(/\r?\n/).map((line) => line.trim());
+        while (lines.length && !lines[0]) lines.shift();
+        if (/^visit note\s*:?\s*$/i.test(lines[0] || "")) lines.shift();
+        while (lines.length && /^(patient\s+name|name|age|sex|uhid|id|mobile|mobile\s+number)\s*:/i.test(lines[0] || "")) lines.shift();
+        while (lines.length && !lines[0]) lines.shift();
+        return plainTextToHtml(lines.join("\n").trim());
+      }
       function ensureVisitVitalsHtml(value) {
         const html = String(value || "");
         if (/^vitals\s*:/im.test(htmlToPlainText(html))) return html;
@@ -6083,7 +6094,7 @@ Treatment / Advice:
             ? formattedTreatmentSummaryHtml(record.docs?.visit || record.noteHtml || record.note || "")
             : ["prescription", "certificate", "reply"].includes(recordKind)
               ? timelineRecordBody(record)
-              : ensureVisitVitalsHtml(compactVisitPatientHeaderHtml(timelineRecordBody(record), patient));
+              : ensureVisitVitalsHtml(stripDuplicateEmptyVitalsHtml(stripSavedVisitChromeHtml(timelineRecordBody(record))));
           return `
             <section class="timeline-entry" id="entry-${record.id}">
               <h2>${record.source === "ambient" ? `${ambientModeLabel(recordKind)} - ` : ""}${dateTimeLabel(recordTimestamp(record))}</h2>
@@ -6155,10 +6166,16 @@ Treatment / Advice:
         if (!activeRecordId) return;
         persistCurrentRecordTab();
         const originalVisitHtml = activeRecordDocs.visit || $("#medicalNoteText").innerHTML || "";
+        applyRecordPatientIdentityFromNote(patient);
+        updateRecordPatientHeader(patient);
+        const savedVisitHtml = !["prescription", "certificate", "reply", "summary"].includes(activeAmbientMode)
+          ? stripSavedVisitChromeHtml(originalVisitHtml)
+          : originalVisitHtml;
         const shouldHideMalayalamInSavedRecord = activeRecordSource === "ambient" && ["visit", "prescription"].includes(activeAmbientMode);
-        const displayVisitHtml = shouldHideMalayalamInSavedRecord ? stripMalayalamInstructionLinesForDisplay(originalVisitHtml) : originalVisitHtml;
+        const displayVisitHtml = shouldHideMalayalamInSavedRecord ? stripMalayalamInstructionLinesForDisplay(savedVisitHtml) : savedVisitHtml;
         const docsForSave = { ...activeRecordDocs, visit: displayVisitHtml };
-        if (displayVisitHtml !== originalVisitHtml) docsForSave.printVisit = originalVisitHtml;
+        if (displayVisitHtml !== savedVisitHtml) docsForSave.printVisit = savedVisitHtml;
+        else delete docsForSave.printVisit;
         activeRecordDocs = docsForSave;
         $("#medicalNoteText").innerHTML = displayVisitHtml;
         if (!["prescription", "certificate", "reply", "summary"].includes(activeAmbientMode)) {
@@ -6166,8 +6183,6 @@ Treatment / Advice:
           activeRecordDocs.visit = stripDuplicateEmptyVitalsHtml(activeRecordDocs.visit);
           $("#medicalNoteText").innerHTML = activeRecordDocs.visit;
         }
-        applyRecordPatientIdentityFromNote(patient);
-        updateRecordPatientHeader(patient);
         const details = collectRecordDetails();
         Object.assign(patient, {
           age: details.age,
@@ -6289,7 +6304,7 @@ Treatment / Advice:
         if (activeAmbientMode === "summary") activeRecordDocs.visit = formattedTreatmentSummaryHtml(activeRecordDocs.visit);
         else if (!["prescription", "certificate", "reply"].includes(activeAmbientMode)) activeRecordDocs.visit = boldVisitNoteHeadingsHtml(activeRecordDocs.visit);
         if (!["prescription", "certificate", "reply", "summary"].includes(activeAmbientMode)) {
-          activeRecordDocs.visit = compactVisitPatientHeaderHtml(activeRecordDocs.visit, patient);
+          activeRecordDocs.visit = stripSavedVisitChromeHtml(activeRecordDocs.visit);
           activeRecordDocs.visit = ensureVisitVitalsHtml(activeRecordDocs.visit);
           activeRecordDocs.visit = stripDuplicateEmptyVitalsHtml(activeRecordDocs.visit);
         }
