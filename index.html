@@ -4004,9 +4004,9 @@ ${context}`);
         const container = document.createElement("div");
         container.innerHTML = String(value || "");
         container.querySelectorAll(".visit-note-title, .draft-patient-line").forEach((node) => node.remove());
-        const lines = htmlToPlainText(container.innerHTML).split(/\r?\n/).map((line) => line.trim());
+        const lines = htmlToPlainText(container.innerHTML).split(/\r?\n/)
+          .map((line) => line.trim().replace(/^visit note\s*(?=vitals\s*:)/i, ""));
         while (lines.length && !lines[0]) lines.shift();
-        if (/^visit note\s*vitals\s*:?/i.test(lines[0] || "")) lines[0] = lines[0].replace(/^visit note\s*/i, "");
         if (/^visit note\s*:?\s*$/i.test(lines[0] || "")) lines.shift();
         while (lines.length && /^(patient\s+name|name|age|sex|uhid|id|mobile|mobile\s+number)\s*:/i.test(lines[0] || "")) lines.shift();
         while (lines.length && !lines[0]) lines.shift();
@@ -4028,7 +4028,8 @@ ${context}`);
         return /^vitals\s*:?\s*$/i.test(String(value || "").trim());
       }
       function stripDuplicateEmptyVitalsHtml(value) {
-        const lines = htmlToPlainText(value).split(/\r?\n/).map((line) => line.trim());
+        const lines = htmlToPlainText(value).split(/\r?\n/)
+          .map((line) => line.trim().replace(/^visit note\s*(?=vitals\s*:)/i, ""));
         const vitalsBlocks = [];
         for (let index = 0; index < lines.length; index += 1) {
           if (!isVitalsHeadingLine(lines[index])) continue;
