@@ -3549,7 +3549,10 @@ ${context}`);
       }
       function updateDraftContent(draft, text, mode) {
         const normalizedText = ensureDocumentTitleText(text, mode);
-        const noteHtml = plainTextToHtml(normalizedText);
+        let noteHtml = plainTextToHtml(normalizedText);
+        if (!["prescription", "certificate", "reply", "summary"].includes(mode)) {
+          noteHtml = stripDuplicateEmptyVitalsHtml(stripSavedVisitChromeHtml(noteHtml));
+        }
         draft.note = normalizedText;
         draft.noteHtml = noteHtml;
         draft.docs = { visit: noteHtml };
@@ -6163,16 +6166,10 @@ Treatment / Advice:
           }
         }
         const fallbackDraft = patientDraftRecords(patient)[0];
-        if (!activeRecordId && fallbackDraft) {
-          activeRecordView = "draft";
-          activeRecordId = fallbackDraft.id;
-          activeRecordDate = fallbackDraft.date;
-          activeRecordCreatedAt = fallbackDraft.createdAt;
-          activeRecordSource = fallbackDraft.source || "typed";
-          activeAmbientMode = fallbackDraft.recordKind || "visit";
-          activeRecordDocs = { visit: fallbackDraft.docs?.visit || fallbackDraft.noteHtml || (fallbackDraft.note ? plainTextToHtml(fallbackDraft.note) : "") };
+        if (!activeRecordId || !["single", "draft"].includes(activeRecordView)) {
+          $("#recordStatus").textContent = fallbackDraft ? "Open the draft before saving." : "Open a note before saving.";
+          return;
         }
-        if (!activeRecordId) return;
         persistCurrentRecordTab();
         const originalVisitHtml = activeRecordDocs.visit || $("#medicalNoteText").innerHTML || "";
         applyRecordPatientIdentityFromNote(patient);
@@ -6266,7 +6263,16 @@ Treatment / Advice:
           activeRecordView = "single";
           activeRecordCreatedAt = record.createdAt;
           activeRecordDate = record.date;
-          if (activeRecordSource === "ambient") showAmbientResult(record.note || htmlToPlainText(record.noteHtml), false);
+          activeRecordSource = record.source || activeRecordSource;
+          activeAmbientMode = record.recordKind || activeAmbientMode;
+          activeRecordDocs = record.docs || { visit: record.noteHtml || "" };
+          $("#medicalNoteText").innerHTML = activeRecordDocs.visit || record.noteHtml || "";
+          if (record.source === "ambient") {
+            const savedMode = activeAmbientMode;
+            resetAmbientState();
+            activeAmbientMode = savedMode;
+            setAmbientButtons();
+          }
         }
         activeRecordDirty = false;
         $("#recordDeleteBtn").hidden = false;
