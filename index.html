@@ -268,20 +268,21 @@
       .record-main { display: grid; grid-template-rows: auto 1fr; gap: 10px; min-height: 0; height: 100%; }
       .record-status { min-height: 20px; color: var(--muted); font-size: 13px; font-weight: 850; }
       .record-status:empty { display: none; }
-      .ambient-dock { display: none; position: fixed; right: 22px; bottom: 22px; z-index: 45; width: 9cm; height: 6cm; padding: 13px 16px; border: 0; border-radius: 18px; background: #1b1b1d; color: #f7f7fb; box-shadow: 0 20px 46px rgba(16, 24, 43, .28); user-select: none; touch-action: none; cursor: move; }
+      .ambient-dock { display: none; position: fixed; right: 22px; bottom: 22px; z-index: 45; width: 9cm; min-height: 4.6cm; padding: 13px 16px 16px; border: 0; border-radius: 18px; background: #1b1b1d; color: #f7f7fb; box-shadow: 0 20px 46px rgba(16, 24, 43, .28); user-select: none; touch-action: none; cursor: move; }
       .ambient-dock.visible { display: grid; grid-template-rows: auto 1fr; gap: 6px; }
-      .ambient-float-head { display: flex; align-items: center; justify-content: flex-start; min-height: 22px; cursor: move; }
+      .ambient-float-head { display: flex; align-items: center; justify-content: space-between; min-height: 32px; padding-right: 58px; cursor: move; position: relative; }
       .ambient-recording-label { display: inline-flex; align-items: center; gap: 7px; color: #ff514a; font-size: 13px; font-weight: 900; }
       .ambient-recording-label::before { content: ""; width: 7px; height: 7px; border-radius: 999px; background: #ff514a; box-shadow: 0 0 0 4px rgba(255, 81, 74, .08); }
-      .ambient-float-body { display: grid; grid-template-rows: auto auto 1fr auto; align-items: center; justify-items: center; gap: 6px; min-height: 0; }
+      .ambient-float-body { display: grid; grid-template-rows: auto auto 1fr; align-items: center; justify-items: center; gap: 8px; min-height: 0; }
       .ambient-float-mode { width: 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; align-self: end; align-items: stretch; }
       .ambient-float-mode .ambient-mode { min-height: 32px; padding: 4px 3px; border-radius: 8px; font-size: 9px; line-height: 1.05; font-weight: 900; background: #2f2f32; color: #f7f7fb; box-shadow: none; white-space: normal; overflow-wrap: anywhere; }
       .ambient-float-mode .ambient-mode.active { background: #592927; color: #ffb4ad; }
       .ambient-float-mode .ambient-mode:disabled { opacity: .65; cursor: not-allowed; }
       .ambient-countdown { color: #10182b; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 42px; font-weight: 900; letter-spacing: .04em; }
       .ambient-dock .ambient-countdown { color: #f7f7fb; font-size: 34px; line-height: 1; font-weight: 900; }
-      .ambient-float-extend { width: 52px; height: 52px; min-height: 52px; padding: 0; border-radius: 999px; background: #2f2f32; color: #f7f7fb; font-size: 17px; font-weight: 900; }
-      .ambient-float-actions { display: flex; align-items: center; justify-content: center; gap: 16px; }
+      .ambient-float-extend { position: absolute; top: 0; right: 0; width: 44px; height: 32px; min-height: 32px; padding: 0; border-radius: 999px; background: #2f2f32; color: #f7f7fb; font-size: 15px; font-weight: 900; }
+      .ambient-float-actions { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+      .ambient-transcribe { width: auto; min-width: 120px; min-height: 48px; padding: 0 16px; border-radius: 999px; background: #ff514a; color: #fff; font-size: 15px; font-weight: 900; }
       .ambient-level { width: 76%; height: 30px; display: grid; grid-template-columns: repeat(28, 1fr); gap: 3px; align-items: end; padding: 1px 0; }
       .ambient-level span { height: 4px; border-radius: 999px 999px 3px 3px; background: rgba(255, 81, 74, .22); opacity: .65; transition: height .08s linear, background .08s linear, opacity .08s linear; }
       .ambient-level span.active { background: #ff514a; opacity: 1; }
@@ -326,7 +327,7 @@
       .ambient-round { width: 92px; height: 92px; border-radius: 999px; min-height: 92px; display: inline-grid; place-items: center; font-size: 34px; color: #fff; border: 0; }
       .ambient-dock .ambient-mic { width: 64px; height: 64px; min-height: 64px; font-size: 0; background: #ff514a; box-shadow: 0 12px 26px rgba(255, 81, 74, .24); }
       .ambient-dock .ambient-mic svg { width: 32px; height: 32px; }
-      .ambient-dock .ambient-round { width: 64px; height: 64px; min-height: 64px; font-size: 25px; }
+      .ambient-dock .ambient-round { width: 58px; height: 58px; min-height: 58px; font-size: 24px; }
       .ambient-dock .ambient-pause { background: #f7f7fb; color: #1b1b1d; }
       .ambient-dock .ambient-stop { background: #2f2f32; color: #ff514a; font-size: 20px; }
       .ambient-pause { background: #f59e0b; }
@@ -344,6 +345,8 @@
       #recordDraftMobile { min-width: 92px; }
       #recordDraftPatientId { min-width: 92px; }
       .medical-textarea .visit-note-title { display: block; margin: 0 0 14px; font-family: Georgia, "Times New Roman", serif; font-size: 28px; line-height: 1.15; font-weight: 800; }
+      .medical-textarea .vitals-line { display: inline; }
+      .medical-textarea .vitals-gap { display: inline-block; width: 1cm; }
       .settings-grid { display: grid; grid-template-columns: minmax(260px, 1fr) auto; gap: 10px; align-items: end; }
       .settings-block { display: block; margin-top: 14px; }
       .settings-toolbar { display: flex; gap: 8px; margin: 8px 0; }
@@ -395,14 +398,15 @@
       .previous-actions [data-ambient-record]:hover { background: #222225; border-color: #ff6963; color: #fff; }
       .previous-actions [data-ambient-record]:active { transform: translateY(1px); }
       .previous-actions [data-ambient-record].active { background: #2a1f20; color: #fff; border-color: #ff6963; }
-      .previous-actions [data-all-records] { order: 3; grid-column: 1 / -1; }
+      .previous-actions [data-all-records] { order: 3; grid-column: 1 / -1; height: 54px; min-height: 54px; padding: 0 10px; }
       .note-action { justify-content: center; min-height: 54px; font-size: 16px; font-weight: 900; text-align: center; }
       .previous-record { justify-content: flex-start; width: 100%; text-align: left; min-height: auto; padding: 10px; }
-      .record-entry-row .previous-record { display: flex; align-items: center; justify-content: flex-start; gap: 19px; min-height: 54px; padding: 8px 10px; }
+      .record-entry-row .previous-record { display: flex; align-items: center; justify-content: flex-start; gap: 12px; height: 54px; min-height: 54px; padding: 0 10px; overflow: hidden; }
+      .record-entry-row .previous-record strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .previous-record.active { background: var(--primary); color: #fff; }
       .previous-record.active span { color: #d7fffa; }
       .previous-record span { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
-      .record-entry-row .previous-record span { margin-top: 0; }
+      .record-entry-row .previous-record span { flex: 0 0 auto; margin: 0 0 0 auto; white-space: nowrap; }
       .record-entry-row { display: grid; grid-template-columns: 1fr; gap: 6px; align-items: stretch; }
       .icon-delete { min-height: 38px; width: 38px; padding: 0; color: var(--danger-ink); background: var(--danger); }
       .icon-delete svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -1239,8 +1243,8 @@
           <div class="print-menu" id="recordTemplateMenu" hidden>
             <button class="secondary" type="button" id="recordTemplateMenuBtn" aria-haspopup="true">Templates</button>
             <div class="print-menu-panel" role="menu" aria-label="Templates">
-              <button class="secondary" type="button" data-record-template="reply" data-feature="printReply" role="menuitem">Reply Letter</button>
-              <button class="secondary" type="button" data-record-template="certificate" data-feature="printCertificate" role="menuitem">Medical Certificate</button>
+              <button class="secondary" type="button" data-record-template="reply" data-feature="printReply" role="menuitem">Letter</button>
+              <button class="secondary" type="button" data-record-template="certificate" data-feature="printCertificate" role="menuitem">Certificate</button>
             </div>
           </div>
           <button class="secondary" type="button" id="recordPreviewBtn" hidden>Preview</button>
@@ -1343,8 +1347,8 @@
       const ambientModes = {
         visit: "Visit Note",
         prescription: "Rx",
-        certificate: "Medical Certificate",
-        reply: "Reply Letter"
+        certificate: "Certificate",
+        reply: "Letter"
       };
       const firebaseConfig = {
         apiKey: "AIzaSyB0WLTwmZpP5BnVZXUywjIrzF0h9AXGtWU",
@@ -1616,6 +1620,11 @@
           hour: "2-digit",
           minute: "2-digit"
         });
+      }
+      function sidebarDateLabel(value) {
+        const date = value ? new Date(value) : new Date();
+        if (Number.isNaN(date.getTime())) return "";
+        return date.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" });
       }
       function recordTimestamp(record) {
         return record.createdAt || record.updatedAt || `${record.date}T00:00:00`;
@@ -2875,7 +2884,7 @@ Do not add, infer, assume, or hallucinate any clinical or administrative informa
 Do not remove anything that was dictated.
 Return plain text only. Do not return JSON. Do not use markdown fences.
 
-Use a simple certificate style. Include patient details only if dictated or provided in the patient context.
+Use a simple certificate style. Do not include patient name, patient ID, UHID, or patient mobile number in the certificate body; those details are already shown in the printed header.
 Start the document with the heading "Medical Certificate".
 If dates, rest period, diagnosis, fitness, or purpose are dictated, include them exactly.
 If a detail is not dictated, omit it. Do not write "Not dictated".
@@ -3113,6 +3122,7 @@ ${context}`);
         dock.innerHTML = `
           <div class="ambient-float-head" data-ambient-drag-handle="true">
             <div class="ambient-recording-label">${stateLabel} · ${ambientFloatModeLabel(activeAmbientMode)}</div>
+            <button class="secondary ambient-float-extend" type="button" data-ambient-extend="true" ${idle || locked ? "hidden" : ""}>+5</button>
           </div>
           <div class="ambient-float-body">
             <div class="ambient-level" data-ambient-level="true" aria-hidden="true">
@@ -3122,7 +3132,6 @@ ${context}`);
               ? `<div class="ambient-progress" aria-label="Processing audio"><div class="ambient-progress-fill"></div></div>`
               : `<div class="ambient-countdown" data-ambient-dock-countdown>${formatDuration(ambientRemainingMs)}</div>`}
             <div class="ambient-float-actions">
-              <button class="secondary ambient-float-extend" type="button" data-ambient-extend="true" ${idle || locked ? "hidden" : ""}>+5</button>
               <button class="ambient-mic" type="button" data-ambient-start="true" title="Start WOYZ" aria-label="Start WOYZ" ${idle ? "" : "hidden"}>
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Z" />
@@ -3130,12 +3139,7 @@ ${context}`);
                 </svg>
               </button>
               <button class="ambient-round ambient-pause" type="button" data-ambient-pause="true" title="${paused ? "Resume" : "Pause"}" aria-label="${paused ? "Resume recording" : "Pause recording"}" ${idle || stopped || locked ? "hidden" : ""}>${paused ? "▶" : "Ⅱ"}</button>
-              <button class="ambient-round ambient-stop" type="button" data-ambient-stop="true" title="Stop and process" aria-label="Stop and process" ${idle || locked ? "hidden" : ""}>■</button>
-            </div>
-            <div class="ambient-float-mode" aria-label="WOYZ template" ${activeAddOn ? "hidden" : ""}>
-              ${Object.entries(ambientModes).map(([value, label]) => `
-                <button class="ambient-mode ${value === activeAmbientMode ? "active" : ""}" type="button" data-ambient-mode="${value}" ${locked ? "disabled" : ""}>${ambientFloatModeLabel(value)}</button>
-              `).join("")}
+              <button class="${stopped ? "ambient-transcribe" : "ambient-round ambient-stop"}" type="button" data-ambient-stop="true" title="${stopped ? "Transcribe" : "Stop"}" aria-label="${stopped ? "Transcribe recording" : "Stop recording"}" ${idle || locked ? "hidden" : ""}>${stopped ? "Transcribe" : "■"}</button>
             </div>
           </div>
         `;
@@ -3781,7 +3785,7 @@ ${context}`);
           <div class="record-entry-row">
             <button class="secondary previous-record ${activeRecordView === "draft" && draft.id === activeRecordId ? "active" : ""}" type="button" data-open-draft-record="${draft.id}">
               <strong>${draft.source === "ambient" ? `${ambientModeLabel(draft.recordKind || "visit")} draft` : "Draft note"}</strong>
-              <span>${dateTimeLabel(draft.createdAt)}</span>
+              <span>${sidebarDateLabel(draft.createdAt)}</span>
             </button>
           </div>
           `).join("")}
@@ -3789,7 +3793,7 @@ ${context}`);
           <div class="record-entry-row">
             <button class="secondary previous-record ${activeRecordView === "single" && record.id === activeRecordId ? "active" : ""}" type="button" data-open-record="${record.id}">
               <strong>${escapeHtml(ambientModeLabel(record.recordKind || "visit"))}</strong>
-              <span>${escapeHtml(dateTimeLabel(recordTimestamp(record)))}</span>
+              <span>${escapeHtml(sidebarDateLabel(recordTimestamp(record)))}</span>
             </button>
           </div>
         `).join("") : `<div class="empty">No notes yet. Click Add note.</div>`}
@@ -3940,7 +3944,11 @@ ${context}`);
         }).join("<br>");
       }
       function formatVitalsLabelsHtml(escapedLine) {
-        return String(escapedLine || "").replace(/\b(BP|Pulse rate|Oxygen saturation|Height|Weight|BMI)\s*:/gi, (match, label) => `<strong>${label}:</strong>`);
+        const line = String(escapedLine || "");
+        const formatted = line
+          .replace(/\b(BP|Pulse rate|Oxygen saturation|Height|Weight|BMI)\s*:/gi, (match, label) => `<strong>${label}:</strong>`)
+          .replace(/;\s*(?=<strong>(?:BP|Pulse rate|Oxygen saturation|Height|Weight|BMI):<\/strong>)/gi, `;<span class="vitals-gap"></span>`);
+        return /\b(BP|Pulse rate|Oxygen saturation|Height|Weight|BMI)\s*:/i.test(line) ? `<span class="vitals-line">${formatted}</span>` : formatted;
       }
       function doctorDraftPatientLineHtml(patient = {}) {
         return `<div class="draft-patient-line">
@@ -4085,9 +4093,26 @@ Treatment / Advice:
           .join("\n")
           .trim();
       }
+      function stripGeneratedPatientDemographicsText(text = "") {
+        return String(text || "")
+          .split(/\r?\n/)
+          .filter((line) => {
+            const trimmed = line.trim();
+            return !/^(patient\s*name|patient\s*id|patient\s*mobile|uhid|id|mobile)\s*:/i.test(trimmed);
+          })
+          .join("\n")
+          .replace(/\n{3,}/g, "\n\n")
+          .trim();
+      }
+      function normalizeGeneratedDocumentText(text = "", mode = "") {
+        let value = String(text || "").trim();
+        if (mode === "reply") value = stripReplyLetterClosingText(value);
+        if (mode === "certificate") value = stripGeneratedPatientDemographicsText(value);
+        return value;
+      }
       function ensureDocumentTitleText(text = "", mode = "") {
         const title = documentTitleForMode(mode);
-        const value = mode === "reply" ? stripReplyLetterClosingText(text) : String(text || "").trim();
+        const value = normalizeGeneratedDocumentText(text, mode);
         if (!title || !value) return value;
         const firstLine = value.split(/\r?\n/).find((line) => line.trim()) || "";
         return firstLine.trim().toLowerCase() === title.toLowerCase() ? value : `${title}\n\n${value}`;
@@ -5180,14 +5205,7 @@ Treatment / Advice:
         return plainTextToHtml(remaining);
       }
       function stripCertificateDemographics(html) {
-        const text = htmlToPlainText(html);
-        const lines = text.split("\n");
-        while (lines.length && !lines[0].trim()) lines.shift();
-        while (lines.length && /^(patient\s*name|patient\s*id|uhid|id|mobile)\s*:/i.test(lines[0].trim())) {
-          lines.shift();
-        }
-        while (lines.length && !lines[0].trim()) lines.shift();
-        return plainTextToHtml(lines.join("\n"));
+        return plainTextToHtml(stripGeneratedPatientDemographicsText(htmlToPlainText(html)));
       }
       function prescriptionTiming(line) {
         const text = line.toLowerCase();
@@ -5628,9 +5646,10 @@ Treatment / Advice:
       function formatDocumentPrintHtml(html, patient, mode = "certificate") {
         const title = documentPrintTitle(mode);
         const dateText = activeRecordCreatedAt ? dateLabel(activeRecordCreatedAt.slice(0, 10)) : dateLabel(localDateKey());
+        const bodyTitle = documentTitleForMode(mode) || ambientModeLabel(mode);
         const bodyHtml = mode === "certificate"
-          ? stripCertificateDemographics(stripDuplicateDocumentTitle(html, ambientModeLabel(mode)))
-          : stripDuplicateDocumentTitle(html, ambientModeLabel(mode));
+          ? stripCertificateDemographics(stripDuplicateDocumentTitle(html, bodyTitle))
+          : stripDuplicateDocumentTitle(html, bodyTitle);
         return `
           <div class="prescription-sheet document-print-sheet">
             <div class="prescription-banner">${medicalPrintSignature("prescription-header-signature")}</div>
@@ -5666,7 +5685,7 @@ Treatment / Advice:
           return formattedTreatmentSummaryHtml(rawHtml);
         }
         if (activeRecordView !== "all" && activeRecordSource === "ambient" && ["prescription", "certificate", "reply"].includes(activeAmbientMode)) {
-          const withoutTitle = stripDuplicateDocumentTitle(rawHtml, ambientModeLabel(activeAmbientMode));
+          const withoutTitle = stripDuplicateDocumentTitle(rawHtml, documentTitleForMode(activeAmbientMode) || ambientModeLabel(activeAmbientMode));
           if (activeAmbientMode === "prescription") return formatPrescriptionPrintHtml(withoutTitle, activeRecordPatient());
           return formatDocumentPrintHtml(withoutTitle, activeRecordPatient(), activeAmbientMode);
         }
@@ -5783,7 +5802,7 @@ Treatment / Advice:
           printContent.innerHTML = formatPrescriptionPrintHtml(prescriptionHtml, patient);
         } else {
           const rawHtml = activeRecordDocs.printVisit || activeRecordDocs.visit || $("#medicalNoteText").innerHTML || "";
-          const withoutTitle = stripDuplicateDocumentTitle(rawHtml, ambientModeLabel(previewType));
+          const withoutTitle = stripDuplicateDocumentTitle(rawHtml, documentTitleForMode(previewType) || ambientModeLabel(previewType));
           printContent.innerHTML = formatDocumentPrintHtml(withoutTitle, patient, previewType);
         }
         document.body.classList.remove("print-smart-chart");
@@ -7824,7 +7843,7 @@ Treatment / Advice:
 
   function stripPatientChrome(lines) {
     return lines.filter(function (line) {
-      return !/^(ID:|Mobile:|All entries|Previous Records|Save|Save & Close|Close|Print|Diagnosis|Comments|Smart Chart|Print Prescription)/i.test(line);
+      return !/^(Patient\s*Name:|Patient\s*ID:|Patient\s*Mobile:|UHID:|ID:|Mobile:|All entries|Previous Records|Save|Save & Close|Close|Print|Diagnosis|Comments|Smart Chart|Print Prescription)/i.test(line);
     });
   }
 
