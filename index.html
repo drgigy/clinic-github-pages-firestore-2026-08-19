@@ -2479,14 +2479,30 @@
       function recordIdFor(patient) { return `${patient.id}_${patient.date}`; }
       function activeRecordPatient() { return findPatientForRecord(activeRecordPatientId); }
       function recordPatientKey(patient) { return String(patientDisplayId(patient) || "").trim(); }
+      function normalisedPatientName(value) {
+        return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      }
+      function recordPatientDemographicsMatch(record, patient) {
+        if (!record || !patient) return false;
+        const recordMobile = normalisedMobile(record.mobile);
+        const patientMobile = normalisedMobile(patient.mobile);
+        if (recordMobile && patientMobile) return recordMobile === patientMobile;
+        const recordName = normalisedPatientName(record.name);
+        const patientName = normalisedPatientName(patient.name);
+        if (recordName && patientName) return recordName === patientName;
+        return true;
+      }
       function recordMatchesPatient(record, patient) {
         if (!patient) return false;
         const uhid = patientDisplayId(patient);
         const recordIdentity = String(record.sharedPatientIdentity || record.patientIdentity || "").trim();
         const patientIdentity = sharedPatientIdentity(patient);
-        if (recordIdentity && patientIdentity && recordIdentity === patientIdentity) return true;
-        if (record.patientId && String(record.patientId) === String(uhid)) return true;
-        if (record.patientKey && String(record.patientKey) === String(uhid)) return true;
+        const sameAppointment = record.patientAppointmentId && record.patientAppointmentId === patient.id;
+        if (sameAppointment) return true;
+        const demographicsMatch = recordPatientDemographicsMatch(record, patient);
+        if (recordIdentity && patientIdentity && recordIdentity === patientIdentity) return demographicsMatch;
+        if (record.patientId && String(record.patientId) === String(uhid)) return demographicsMatch;
+        if (record.patientKey && String(record.patientKey) === String(uhid)) return demographicsMatch;
         return !record.patientId && !record.patientKey && record.patientAppointmentId === patient.id;
       }
       function patientMedicalRecords(patient) {
@@ -3844,6 +3860,15 @@ ${context}`);
           return;
         }
         extraDraftMedicalRecords = extraDraftMedicalRecords.filter((draft) => draft.id !== id);
+      }
+      function discardOtherPatientDrafts(patient, keepDraftId = "") {
+        if (!patient) return;
+        const key = recordPatientKey(patient);
+        if (draftMedicalRecord && draftMedicalRecord.patientKey === key && draftMedicalRecord.id !== keepDraftId) {
+          if (draftMedicalRecord.source === "ambient") resetAmbientState();
+          draftMedicalRecord = null;
+        }
+        extraDraftMedicalRecords = extraDraftMedicalRecords.filter((draft) => !(draft && draft.patientKey === key && draft.id !== keepDraftId));
       }
       function createDraftMedicalRecord(patient, source = "typed", recordKind = "visit", createdAt = new Date().toISOString()) {
         return {
@@ -6739,6 +6764,7 @@ Treatment / Advice:
         await saveMedicalRecordToCloud(record);
         savePatientToCloud(patient);
         save();
+        discardOtherPatientDrafts(patient, savingDraftRecord?.id || "");
         if (savingDraft) {
           removeDraftRecordById(savingDraftRecord.id);
           activeRecordId = record.id;
