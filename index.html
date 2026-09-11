@@ -818,7 +818,7 @@
           <button class="secondary date-step" id="prevDateBtn" type="button" title="Previous day" aria-label="Previous day">‹</button>
           <label>
             <span class="sr-only">Clinic date</span>
-            <input id="clinicDate" type="date" />
+            <input id="clinicDate" type="text" inputmode="numeric" autocomplete="off" placeholder="DD/MM/YYYY" aria-label="Clinic date in DD/MM/YYYY format" />
           </label>
           <button class="secondary date-step" id="nextDateBtn" type="button" title="Next day" aria-label="Next day">›</button>
           <button class="secondary" id="todayBtn" type="button">Today</button>
@@ -1637,7 +1637,7 @@
       let patients = parsePatients();
       let accounts = [];
 
-      $("#clinicDate").value = selectedDate;
+      $("#clinicDate").value = dateKeyToSlashLabel(selectedDate);
       $("#accountDate").value = selectedDate;
       $("#accountsReportMonth").value = selectedDate.slice(0, 7);
       $("#accountsReportFromMonth").value = selectedDate.slice(0, 7);
@@ -1661,6 +1661,28 @@
         const month = String(date.getMonth() + 1).padStart(2, "0");
         const day = String(date.getDate()).padStart(2, "0");
         return `${year}-${month}-${day}`;
+      }
+      function dateKeyToSlashLabel(dateKey = "") {
+        const match = String(dateKey || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        return match ? `${match[3]}/${match[2]}/${match[1]}` : slashDateLabel(dateKey, true);
+      }
+      function slashLabelToDateKey(value = "") {
+        const text = String(value || "").trim();
+        const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (iso) return text;
+        const match = text.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2}|\d{4})$/);
+        if (!match) return "";
+        const day = match[1].padStart(2, "0");
+        const month = match[2].padStart(2, "0");
+        const year = match[3].length === 2 ? `20${match[3]}` : match[3];
+        const parsed = new Date(`${year}-${month}-${day}T00:00:00`);
+        if (Number.isNaN(parsed.getTime())) return "";
+        if (String(parsed.getDate()).padStart(2, "0") !== day || String(parsed.getMonth() + 1).padStart(2, "0") !== month || String(parsed.getFullYear()) !== year) return "";
+        return `${year}-${month}-${day}`;
+      }
+      function setClinicDateInput() {
+        const input = $("#clinicDate");
+        if (input) input.value = dateKeyToSlashLabel(selectedDate);
       }
       function dateTimeLabel(value) {
         const date = value ? new Date(value) : new Date();
@@ -2363,7 +2385,7 @@
         const next = new Date(`${selectedDate || todayKey}T00:00:00`);
         next.setDate(next.getDate() + days);
         selectedDate = localDateKey(next);
-        $("#clinicDate").value = selectedDate;
+        setClinicDateInput();
         $("#accountDate").value = selectedDate;
         $("#accountsReportMonth").value = selectedDate.slice(0, 7);
         $("#accountsReportFromMonth").value = selectedDate.slice(0, 7);
@@ -8229,7 +8251,7 @@ Treatment / Advice:
           closeSettingsModal();
         }
         if (button.dataset.accountDelete) { const id = button.dataset.accountDelete; accounts = accounts.filter((entry) => entry.id !== id); deleteAccountFromCloud(id); renderAccounts(); }
-        if (button.id === "todayBtn") { selectedDate = todayKey; $("#clinicDate").value = selectedDate; save(); render(); renderPrintQueue(); }
+        if (button.id === "todayBtn") { selectedDate = todayKey; setClinicDateInput(); save(); render(); renderPrintQueue(); }
         if (button.id === "prevDateBtn") shiftSelectedDate(-1);
         if (button.id === "nextDateBtn") shiftSelectedDate(1);
       });
@@ -8240,7 +8262,14 @@ Treatment / Advice:
       window.addEventListener("resize", applyAmbientFloatPosition);
       document.addEventListener("change", (event) => {
         if (event.target.id === "clinicDate") {
-          selectedDate = event.target.value || todayKey;
+          const parsedDate = slashLabelToDateKey(event.target.value);
+          if (!parsedDate) {
+            event.target.value = dateKeyToSlashLabel(selectedDate || todayKey);
+            alert("Please enter the date as DD/MM/YYYY.");
+            return;
+          }
+          selectedDate = parsedDate;
+          setClinicDateInput();
           $("#accountDate").value = selectedDate;
           $("#accountsReportMonth").value = selectedDate.slice(0, 7);
           $("#accountsReportFromMonth").value = selectedDate.slice(0, 7);
