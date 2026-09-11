@@ -6306,8 +6306,6 @@ Treatment / Advice:
         return extractPrescriptionFromVisitHtml(html) || ((record.recordKind || "visit") === "addon" ? extractPrescriptionFallbackHtml(html) : "");
       }
       function prescriptionHtmlForCurrentPatient(patient) {
-        const fragments = [];
-        const seen = new Set();
         const activeSavedRecord = medicalRecords.find((record) => record.id === activeRecordId);
         const savedPrintSource = activeSavedRecord?.docs?.printVisit || "";
         const excludedPrescriptionSourceKinds = new Set(["certificate", "reply", "summary"]);
@@ -6318,29 +6316,10 @@ Treatment / Advice:
             .find((html) => htmlToPlainText(html || "").trim());
           return prescriptionRecord || "";
         }
-        const addFragment = (html) => {
-          const text = htmlToPlainText(html || "").trim();
-          const key = text.toLowerCase();
-          if (!text || seen.has(key)) return;
-          seen.add(key);
-          fragments.push(html);
-        };
-        if (activeRecordView !== "all") {
-          const activePrescriptionSource = activeRecordDocs.printVisit || savedPrintSource || activeRecordDocs.visit || $("#medicalNoteText").innerHTML;
-          addFragment(activeRecordSource === "ambient" && activeAmbientMode === "prescription"
-            ? stripDuplicateDocumentTitle(activePrescriptionSource, "Prescription")
-            : extractPrescriptionFromVisitHtml(activePrescriptionSource));
-        }
-        patientMedicalRecords(patient).forEach((record) => {
-          if (activeRecordView !== "all" && record.id === activeRecordId) return;
-          const recordKind = record.recordKind || "visit";
-          if (excludedPrescriptionSourceKinds.has(recordKind)) return;
-          const recordDay = record.date || recordTimestamp(record).slice(0, 10);
-          const sameVisitDay = activeRecordView === "all" || recordDay === activeRecordDate || recordDay === patient.date;
-          if (!sameVisitDay) return;
-          addFragment(prescriptionHtmlFromRecord(record));
-        });
-        return fragments.join("<br>");
+        const activePrescriptionSource = activeRecordDocs.printVisit || savedPrintSource || activeRecordDocs.visit || $("#medicalNoteText").innerHTML;
+        return activeRecordSource === "ambient" && activeAmbientMode === "prescription"
+          ? stripDuplicateDocumentTitle(activePrescriptionSource, "Prescription")
+          : extractPrescriptionFromVisitHtml(activePrescriptionSource);
       }
       function printPrescriptionFromVisitNote() {
         const patient = activeRecordPatient();
