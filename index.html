@@ -1271,6 +1271,7 @@
               <button class="secondary" type="button" data-record-preview="visit" role="menuitem">Visit Note</button>
             </div>
           </div>
+          <button class="secondary" type="button" id="recordQueuePrintBtn" hidden>Send to Print Queue</button>
           <button class="secondary" type="button" id="recordAddOnBtn" data-feature="woyzNote" hidden>Add On</button>
           <button class="secondary smart-chart-button" type="button" id="recordSummaryBtn" data-feature="smartChart" style="background:#dc2626;color:#fff;box-shadow:inset 0 0 0 2px #991b1b,0 1px 4px rgba(153,27,27,.22);">Smart Chart</button>
           <button class="secondary" type="button" id="recordMyVoiceSummaryBtn" data-feature="smartChart">Summary</button>
@@ -1746,6 +1747,16 @@
           }, { merge: true });
         } catch (error) {
           console.error("Cloud print status save failed", error);
+        }
+      }
+      async function saveMedicalRecordPrintQueue(recordId, printQueue) {
+        try {
+          await setDoc(medicalRecordDoc(recordId), {
+            printQueue,
+            updatedAt: new Date().toISOString()
+          }, { merge: true });
+        } catch (error) {
+          console.error("Cloud print queue save failed", error);
         }
       }
       async function saveNeuroStatToCloud(entry) {
@@ -3215,6 +3226,7 @@ ${context}`);
         updateAddOnButtonVisibility();
         updateTemplateButtonVisibility();
         updatePreviewButtonVisibility();
+        updateQueuePrintButtonVisibility();
         const starts = document.querySelectorAll("[data-ambient-start]");
         const pauses = document.querySelectorAll("[data-ambient-pause]");
         const stops = document.querySelectorAll("[data-ambient-stop]");
@@ -4410,6 +4422,10 @@ Treatment / Advice:
       function isPrintQueueRecord(record) {
         return printQueueDocumentTypes.includes(record?.recordKind || "visit");
       }
+      function isQueuedForStaffPrint(record) {
+        const kind = record?.recordKind || "visit";
+        return isPrintQueueRecord(record) && Boolean(record?.printQueue?.[kind]?.queuedAt);
+      }
       function printQueueTypeLabel(kind) {
         return {
           prescription: "Prescription",
@@ -4434,6 +4450,7 @@ Treatment / Advice:
       function printQueueItems() {
         return medicalRecords
           .filter((record) => isPrintQueueRecord(record))
+          .filter((record) => isQueuedForStaffPrint(record))
           .filter((record) => printQueueRecordDate(record) === selectedDate)
           .sort((a, b) => new Date(recordTimestamp(b)) - new Date(recordTimestamp(a)));
       }
@@ -4536,6 +4553,63 @@ Treatment / Advice:
         renderPrintQueue();
         await saveMedicalRecordPrintStatus(recordId, printStatus);
         renderPrintQueue();
+      }
+      function clearPendingPrintQueueItem() {
+        pendingPrintQueueItem = null;
+        renderPrintQueue();
+      }
+      function confirmPendingPrintQueueItemPrinted() {
+        if (!pendingPrintQueueItem) return;
+        window.setTimeout(() => {
+          if (!pendingPrintQueueItem) return;
+          if (confirm("Mark this queued document as printed?")) {
+            markPendingPrintQueueItemPrinted();
+          } else {
+            clearPendingPrintQueueItem();
+          }
+        }, 100);
+      }
+      function activeQueueableRecord() {
+        if (activeRecordView !== "single" || !activeRecordId) return null;
+        const record = medicalRecords.find((item) => item.id === activeRecordId);
+        return isPrintQueueRecord(record) ? record : null;
+      }
+      function updateQueuePrintButtonVisibility() {
+        const button = $("#recordQueuePrintBtn");
+        if (!button) return;
+        const record = activeQueueableRecord();
+        button.hidden = !record;
+        if (!record) return;
+        const kind = record.recordKind || "visit";
+        const queued = Boolean(record.printQueue?.[kind]?.queuedAt);
+        button.textContent = queued ? "Sent to Print Queue" : "Send to Print Queue";
+        button.disabled = queued;
+      }
+      async function queueActiveDocumentForStaffPrint() {
+        const record = activeQueueableRecord();
+        if (!record) {
+          alert("Only saved prescriptions, medical certificates, and reply letters can be sent to the staff print queue.");
+          return;
+        }
+        const kind = record.recordKind || "visit";
+        if (!printQueueDocumentTypes.includes(kind)) {
+          alert("Only prescriptions, medical certificates, and reply letters can be sent to the staff print queue.");
+          return;
+        }
+        const queuedAt = new Date().toISOString();
+        const printQueue = {
+          ...(record.printQueue || {}),
+          [kind]: {
+            queuedAt,
+            queuedByUid: currentUserId(),
+            queuedByName: doctorNameForUid(currentUserId())
+          }
+        };
+        record.printQueue = printQueue;
+        updateQueuePrintButtonVisibility();
+        renderPrintQueue();
+        await saveMedicalRecordPrintQueue(record.id, printQueue);
+        $("#recordStatus").textContent = `${printQueueTypeLabel(kind)} sent to staff print queue.`;
       }
       function treatmentTimelineHtml(records) {
         return `<div class="treatment-summary-print treatment-timeline-print">${records.map((record) => `
@@ -7914,6 +7988,7 @@ Treatment / Advice:
         if (button.dataset.printSmartChart) printActiveMedicalRecord();
         if (button.dataset.recordPreview) previewSelectedMedicalRecord(button.dataset.recordPreview);
         if (button.id === "recordPreviewBtn") previewSelectedMedicalRecord();
+        if (button.id === "recordQueuePrintBtn") await queueActiveDocumentForStaffPrint();
         if (button.id === "closePrintPreviewBtn") closePrintPreview();
         if (button.id === "recordAddOnBtn") startRecordAddOn();
         if (button.id === "recordSummaryBtn") showSmartChart();
@@ -7962,7 +8037,7 @@ Treatment / Advice:
         if (button.id === "nextDateBtn") shiftSelectedDate(1);
       });
       window.addEventListener("afterprint", () => {
-        markPendingPrintQueueItemPrinted();
+        confirmPendingPrintQueueItemPrinted();
         cleanupPrintState();
       });
       window.addEventListener("resize", applyAmbientFloatPosition);
@@ -8081,229 +8156,5 @@ Treatment / Advice:
       setMainTab("doctor");
       render();
     </script>
-<script>
-(function () {
-  if (window.__woyzPrintLettersInstalled) return;
-  window.__woyzPrintLettersInstalled = true;
-
-  var doctorHeader = [
-    "",
-    "",
-    "",
-    ""
-  ];
-
-  function textOf(el) {
-    return (el && (el.innerText || el.textContent || el.value) || "").trim();
-  }
-
-  function isVisible(el) {
-    if (!el) return false;
-    var style = window.getComputedStyle(el);
-    return style.display !== "none" && style.visibility !== "hidden" && el.offsetParent !== null;
-  }
-
-  function escapeHtml(value) {
-    return String(value || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-  }
-
-  function formatDate() {
-    return new Date().toLocaleDateString("en-IN", {
-      weekday: "long",
-      day: "2-digit",
-      month: "short",
-      year: "numeric"
-    });
-  }
-
-  function getPatientDetails() {
-    var pageText = document.body.innerText || "";
-    var headings = Array.from(document.querySelectorAll("h1,h2,.patient-name,.record-patient-name"))
-      .filter(isVisible)
-      .map(textOf)
-      .filter(Boolean);
-    var name = headings[0] || (pageText.split(/\n/).map(function (line) { return line.trim(); }).filter(Boolean)[0] || "Patient");
-    var idMatch = pageText.match(/\bID:\s*([A-Za-z0-9]+)/i);
-    var mobileMatch = pageText.match(/\bMobile:\s*([0-9 ]{6,})/i);
-    return {
-      name: name,
-      id: idMatch ? idMatch[1] : "",
-      mobile: mobileMatch ? mobileMatch[1].trim() : "",
-      date: formatDate()
-    };
-  }
-
-  function getCurrentNoteText() {
-    var editable = Array.from(document.querySelectorAll("textarea,[contenteditable='true']"))
-      .filter(isVisible)
-      .map(textOf)
-      .filter(function (value) { return value.length > 20; });
-    if (editable.length) return editable.sort(function (a, b) { return b.length - a.length; })[0];
-
-    var candidates = Array.from(document.querySelectorAll(
-      ".medical-note-body,.note-body,.record-note,.note-card,.medical-record-main,.record-content,.note-content,.medical-record-content"
-    ))
-      .filter(isVisible)
-      .map(textOf)
-      .filter(function (value) { return value.length > 20; });
-    if (candidates.length) return candidates.sort(function (a, b) { return b.length - a.length; })[0];
-
-    return textOf(document.body);
-  }
-
-  function stripPatientChrome(lines) {
-    return lines.filter(function (line) {
-      return !/^(Patient\s*Name:|Patient\s*ID:|Patient\s*Mobile:|UHID:|ID:|Mobile:|All entries|Previous Records|Save|Save & Close|Close|Print|Diagnosis|Comments|Smart Chart|Print Prescription)/i.test(line);
-    });
-  }
-
-  function extractSection(source, type) {
-    var labels = type === "certificate"
-      ? ["Medical Certificate", "Certificate"]
-      : ["Reply Letter", "Referral Letter", "Reply", "Letter"];
-    var stopHeadings = [
-      "Chief Complaints", "History of Present Illness", "History of Present Illness:",
-      "Past Medical", "Allergies", "Examination", "Review of Investigations",
-      "Current Medications", "Diagnosis", "Orders", "Prescription", "Advice", "Advice / Instructions",
-      "Medical Certificate", "Certificate", "Reply Letter", "Referral Letter", "Reply"
-    ];
-    var lines = String(source || "").split(/\r?\n/).map(function (line) { return line.trim(); });
-    var cleaned = stripPatientChrome(lines).filter(Boolean);
-    var start = -1;
-    var labelUsed = "";
-
-    for (var i = 0; i < cleaned.length; i += 1) {
-      for (var j = 0; j < labels.length; j += 1) {
-        var label = labels[j];
-        var pattern = new RegExp("^" + label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*:?\\s*$", "i");
-        if (pattern.test(cleaned[i])) {
-          start = i + 1;
-          labelUsed = label;
-          break;
-        }
-      }
-      if (start !== -1) break;
-    }
-
-    if (start === -1) {
-      var titlePattern = type === "certificate" ? /certificate/i : /(reply|referral|letter)/i;
-      if (titlePattern.test(cleaned.slice(0, 5).join(" "))) {
-        return cleaned.slice(1).join("\n").trim();
-      }
-      return "";
-    }
-
-    var output = [];
-    for (var k = start; k < cleaned.length; k += 1) {
-      var line = cleaned[k];
-      var isStop = stopHeadings.some(function (heading) {
-        if (heading.toLowerCase() === labelUsed.toLowerCase()) return false;
-        return new RegExp("^" + heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*:?\\s*$", "i").test(line);
-      });
-      if (isStop && output.length) break;
-      output.push(line);
-    }
-    return output.join("\n").trim();
-  }
-
-  function paragraphsFromText(value) {
-    return String(value || "")
-      .split(/\n{2,}/)
-      .map(function (block) {
-        var safe = block.split(/\n/).map(escapeHtml).join("<br>");
-        return "<p>" + safe + "</p>";
-      })
-      .join("");
-  }
-
-  function openPrintWindow(type) {
-    var patient = getPatientDetails();
-    var source = getCurrentNoteText();
-    var content = extractSection(source, type);
-    if (!content) {
-      alert(type === "certificate"
-        ? "No certificate text found in the selected note. Please select or generate a certificate note first."
-        : "No reply letter text found in the selected note. Please select or generate a reply letter note first.");
-      return;
-    }
-
-    var title = type === "certificate" ? "MEDICAL CERTIFICATE" : "REPLY LETTER";
-    var patientLine = [
-      patient.id ? "ID: " + patient.id : "",
-      patient.mobile ? "Mobile: " + patient.mobile : "",
-      patient.date
-    ].filter(Boolean).join(" | ");
-
-    var printContent = document.getElementById("medicalPrintContent");
-    if (!printContent) {
-      alert("Preview area is not available. Please refresh and try again.");
-      return;
-    }
-    var hasDoctorHeader = doctorHeader.some(function (line) { return String(line || "").trim(); });
-    var doctorHeaderHtml = hasDoctorHeader
-      ? "<div class='doctor-header'><strong>" + escapeHtml(doctorHeader[0]) + "</strong>" +
-        "<div>" + escapeHtml(doctorHeader[1]) + "</div>" +
-        "<div>" + escapeHtml(doctorHeader[2]) + "</div>" +
-        "<div>" + escapeHtml(doctorHeader[3]) + "</div></div>"
-      : "";
-    var signatureHtml = hasDoctorHeader
-      ? "<div class='signature'>" + escapeHtml(doctorHeader[0]) +
-        "<span>" + escapeHtml(doctorHeader[1]) + "</span>" +
-        "<span>" + escapeHtml(doctorHeader[2]) + "</span></div>"
-      : "";
-    printContent.classList.remove("smart-print-content");
-    printContent.innerHTML =
-      "<div class='letter-print'>" +
-      doctorHeaderHtml +
-      "<h1 class='patient-name'>" + escapeHtml(patient.name) + "</h1>" +
-      "<div class='meta'>" + escapeHtml(patientLine) + "</div>" +
-      "<div class='doc-title'>" + title + "</div>" +
-      "<div class='body'>" + paragraphsFromText(content) + "</div>" +
-      signatureHtml +
-      "</div>";
-    document.body.classList.remove("print-prescription", "print-smart-chart");
-    document.body.classList.add("print-medical");
-    if (window.woyzShowPrintPreview) window.woyzShowPrintPreview();
-  }
-
-  function addButton(label, type) {
-    var existing = Array.from(document.querySelectorAll("button")).find(function (button) {
-      return textOf(button).toLowerCase() === label.toLowerCase();
-    });
-    if (existing) return;
-
-    var prescriptionButton = Array.from(document.querySelectorAll("button")).find(function (button) {
-      return textOf(button).toLowerCase() === "print prescription";
-    });
-    if (!prescriptionButton || !prescriptionButton.parentNode) return;
-
-    var button = document.createElement("button");
-    button.type = "button";
-    button.textContent = label;
-    button.className = prescriptionButton.className;
-    var featureName = type === "certificate" ? "printCertificate" : "printReply";
-    button.dataset.feature = featureName;
-    button.dataset.featureHidden = window.woyzFeatureEnabled && !window.woyzFeatureEnabled(featureName) ? "true" : "false";
-    button.addEventListener("click", function () { openPrintWindow(type); });
-    prescriptionButton.parentNode.insertBefore(button, prescriptionButton.nextSibling);
-    if (window.applyWoyzAppFeatures) window.applyWoyzAppFeatures();
-  }
-
-  function installButtons() {
-    return;
-  }
-
-  window.printCertificate = function () { openPrintWindow("certificate"); };
-  window.printReply = function () { openPrintWindow("reply"); };
-  document.addEventListener("DOMContentLoaded", installButtons);
-  installButtons();
-  new MutationObserver(installButtons).observe(document.documentElement, { childList: true, subtree: true });
-})();
-</script>
 </body>
 </html>
