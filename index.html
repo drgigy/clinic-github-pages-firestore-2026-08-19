@@ -6963,7 +6963,7 @@ Treatment / Advice:
             <div class="consult-head"><div class="consult-title"><b>${afterPatientLine(p)}</b></div><div class="consult-details">${p.diagnosis} · ${p.visitType} · ${p.mode}</div></div>
             <div class="post-consult-block">
               <div class="post-consult-left">
-                <div class="attendance-actions patient-row-actions"><button class="choice ${p.attendance === "Came" ? "came" : ""}" data-attendance="${p.id}:Came" type="button">Came</button><button class="choice ${p.attendance === "No show" ? "noshow" : ""}" data-attendance="${p.id}:No show" type="button">No show</button><button class="secondary medical-record-btn" data-medical-record="${p.id}" type="button">Medical Record</button><button class="secondary" data-edit-patient="${p.id}" type="button">Edit</button></div>
+                <div class="attendance-actions patient-row-actions"><button class="choice ${p.attendance === "Came" ? "came" : ""}" data-attendance="${p.id}:Came" type="button">Came</button><button class="choice ${p.attendance === "No show" ? "noshow" : ""}" data-attendance="${p.id}:No show" type="button">No show</button><button class="secondary" data-edit-patient="${p.id}" type="button">Edit</button></div>
                 <div class="test-options">${patientTestNames(p).map((test) => `<label class="test-check"><input type="checkbox" data-test-patient="${p.id}" data-test-name="${escapeHtml(test)}" ${p.tests?.includes(test) ? "checked" : ""} />${escapeHtml(test)}</label>`).join("")}</div>
               </div>
               <div class="payment-group">
@@ -7979,7 +7979,10 @@ Treatment / Advice:
         if (button.dataset.callback) { const [id, callbackStatus] = button.dataset.callback.split(":"); openCallbackId = ""; updatePatient(id, { callbackStatus }); }
         if (button.dataset.pay) { const [id, field, value] = button.dataset.pay.split(":"); updatePayment(id, field, value); }
         if (button.dataset.reusePatient) reusePatient(button.dataset.reusePatient);
-        if (button.dataset.medicalRecord) await openMedicalRecord(button.dataset.medicalRecord);
+        if (button.dataset.medicalRecord) {
+          if (activeMainTab === "staff") return;
+          await openMedicalRecord(button.dataset.medicalRecord);
+        }
         if (button.dataset.allRecords) renderAllMedicalEntries();
         if (button.dataset.printSmartChart) printActiveMedicalRecord();
         if (button.dataset.smartDeleteRow) {
