@@ -203,6 +203,17 @@
       .amount-input { width: 105px; min-height: 34px; padding: 6px 9px; font-weight: 750; }
       .danger-action { background: var(--danger); color: var(--danger-ink); }
       .medical-record-btn { background: var(--primary); color: #fff; box-shadow: inset 0 0 0 2px var(--green-dark), 0 1px 4px rgba(0, 79, 51, .22); }
+      .print-queue-card { width: min(980px, 100%); }
+      .print-queue-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+      .print-queue-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+      .print-queue-filters button.active { background: var(--primary); color: #fff; box-shadow: inset 0 0 0 2px var(--green-dark), 0 1px 4px rgba(0, 79, 51, .18); }
+      .print-queue-list { display: grid; gap: 8px; }
+      .print-queue-row { display: grid; grid-template-columns: minmax(140px, 1.25fr) 92px 150px 140px 100px auto; gap: 8px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; background: #fff; }
+      .print-queue-row.printed { background: #e9f8ed; border-color: #b9e2c4; }
+      .print-queue-head { background: #f5f8fa; color: var(--muted); font-size: 12px; font-weight: 900; text-transform: uppercase; }
+      .print-queue-status { font-weight: 900; color: #9a3412; }
+      .print-queue-row.printed .print-queue-status { color: #166534; }
+      .print-queue-empty { color: var(--muted); border: 1px dashed var(--line); border-radius: var(--radius); padding: 16px; background: #fbfdfe; }
       .empty { color: var(--muted); border: 1px dashed var(--line); border-radius: var(--radius); padding: 16px; background: #fbfdfe; }
       .report-grid { display: grid; grid-template-columns: repeat(6, minmax(120px, 1fr)); gap: 10px; }
       .report-item { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; background: #fbfdfe; }
@@ -582,7 +593,7 @@
         body.print-accounts .report-overlay { position: static; display: block; padding: 1in; background: #fff; overflow: visible; }
         body.print-accounts .report-sheet { max-width: none; margin: 0; padding: 0; box-shadow: none; border-radius: 0; }
         body.print-accounts .report-toolbar { display: none; }
-        body.print-medical .app, body.print-medical .record-screen, body.print-medical .neuro-screen, body.print-medical .report-overlay, body.print-medical .unsaved-dialog { display: none; }
+        body.print-medical .app, body.print-medical .record-screen, body.print-medical .neuro-screen, body.print-medical .report-overlay, body.print-medical .unsaved-dialog, body.print-medical .add-patient-modal, body.print-medical .print-preview-modal { display: none; }
         body.print-medical .medical-print-content { display: block; box-sizing: border-box; min-height: 100vh; width: 210mm; max-width: 210mm; margin: 0 auto; font-family: Arial, sans-serif; color: #111; padding: 2in 1in 1in; }
         body.print-medical .medical-print-content h1 { font-size: 22px; font-weight: 900 !important; margin: 0 0 8px; }
         body.print-medical .medical-print-content .meta { color: #444; margin-bottom: 18px; }
@@ -831,6 +842,7 @@
         <div class="queue-overview" id="queueOverview">
           <button class="primary queue-add-patient doctor-mobile-add" id="openDoctorMobileAddPatientBtn" type="button" hidden>Add Patient</button>
           <button class="primary queue-add-patient" id="openAddPatientBtn" type="button" data-feature="staff">Add Patient</button>
+          <button class="secondary queue-add-patient" id="openPrintQueueBtn" type="button" data-feature="staff" hidden>Print Queue</button>
           <div class="doctor-search-panel" id="doctorSearchPanel" hidden>
             <label for="doctorPatientSearch">Search previous patient</label>
             <div class="doctor-search-row">
@@ -1313,6 +1325,26 @@
         </div>
       </div>
     </section>
+    <section class="add-patient-modal" id="printQueueModal" aria-hidden="true">
+      <div class="add-patient-card print-queue-card">
+        <div class="section-head">
+          <div>
+            <h2>Print Queue</h2>
+            <p class="date" id="printQueueDateLabel"></p>
+          </div>
+          <button class="secondary" type="button" id="closePrintQueueBtn">Close</button>
+        </div>
+        <div class="print-queue-toolbar">
+          <div class="print-queue-filters" aria-label="Print queue filters">
+            <button class="secondary active" type="button" data-print-queue-filter="pending">Pending</button>
+            <button class="secondary" type="button" data-print-queue-filter="printed">Printed</button>
+            <button class="secondary" type="button" data-print-queue-filter="all">All</button>
+          </div>
+          <span class="meta" id="printQueueCount"></span>
+        </div>
+        <div class="print-queue-list" id="printQueueList"></div>
+      </div>
+    </section>
     <div class="medical-print-content" id="medicalPrintContent"></div>
     <section class="print-preview-modal" id="printPreviewModal" aria-hidden="true">
       <div class="print-preview-toolbar">
@@ -1465,6 +1497,9 @@
       let activeRecordDirty = false;
       let activeRecordType = "visit";
       let activeRecordDocs = {};
+      const printQueueDocumentTypes = ["prescription", "certificate", "reply"];
+      let printQueueFilter = "pending";
+      let pendingPrintQueueItem = null;
       let activeRecordSource = "typed";
       let draftMedicalRecord = null;
       let extraDraftMedicalRecords = [];
@@ -1703,6 +1738,16 @@
           console.error("Cloud medical record save failed", error);
         }
       }
+      async function saveMedicalRecordPrintStatus(recordId, printStatus) {
+        try {
+          await setDoc(medicalRecordDoc(recordId), {
+            printStatus,
+            updatedAt: new Date().toISOString()
+          }, { merge: true });
+        } catch (error) {
+          console.error("Cloud print status save failed", error);
+        }
+      }
       async function saveNeuroStatToCloud(entry) {
         try {
           await setDoc(userDoc("neuroMonthlyStats", entry.id), entry, { merge: true });
@@ -1838,6 +1883,7 @@
           medicalRecords = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
           renderPreviousRecords();
           renderAfterList();
+          renderPrintQueue();
         }, (error) => {
           console.error("Cloud medical records sync failed", error);
         });
@@ -4361,6 +4407,136 @@ Treatment / Advice:
       function printableRecordBody(record) {
         return record?.docs?.printVisit || record?.docs?.visit || record?.noteHtml || (record?.note ? plainTextToHtml(record.note) : "");
       }
+      function isPrintQueueRecord(record) {
+        return printQueueDocumentTypes.includes(record?.recordKind || "visit");
+      }
+      function printQueueTypeLabel(kind) {
+        return {
+          prescription: "Prescription",
+          certificate: "Medical Certificate",
+          reply: "Reply Letter"
+        }[kind] || "";
+      }
+      function printQueueRecordDate(record) {
+        return record?.date || recordTimestamp(record).slice(0, 10);
+      }
+      function printQueuePatientFromRecord(record) {
+        return {
+          id: record.patientAppointmentId || record.id || "",
+          patientId: record.patientId || "",
+          name: record.name || "",
+          age: record.age || "",
+          sex: record.sex || "",
+          mobile: record.mobile || "",
+          date: record.date || selectedDate
+        };
+      }
+      function printQueueItems() {
+        return medicalRecords
+          .filter((record) => isPrintQueueRecord(record))
+          .filter((record) => printQueueRecordDate(record) === selectedDate)
+          .sort((a, b) => new Date(recordTimestamp(b)) - new Date(recordTimestamp(a)));
+      }
+      function filteredPrintQueueItems() {
+        return printQueueItems().filter((record) => {
+          const printed = Boolean(record.printStatus?.[record.recordKind]);
+          if (printQueueFilter === "pending") return !printed;
+          if (printQueueFilter === "printed") return printed;
+          return true;
+        });
+      }
+      function renderPrintQueue() {
+        const list = $("#printQueueList");
+        if (!list) return;
+        $$("[data-print-queue-filter]").forEach((button) => button.classList.toggle("active", button.dataset.printQueueFilter === printQueueFilter));
+        const allItems = printQueueItems();
+        const rows = filteredPrintQueueItems();
+        const pendingCount = allItems.filter((record) => !record.printStatus?.[record.recordKind]).length;
+        const printedCount = allItems.length - pendingCount;
+        $("#printQueueDateLabel").textContent = `Clinic date: ${dateLabel(selectedDate)}`;
+        $("#printQueueCount").textContent = `${pendingCount} pending, ${printedCount} printed`;
+        if (!rows.length) {
+          list.innerHTML = `<div class="print-queue-empty">No ${printQueueFilter === "all" ? "" : printQueueFilter} queued documents for this date.</div>`;
+          return;
+        }
+        list.innerHTML = `
+          <div class="print-queue-row print-queue-head">
+            <span>Patient</span>
+            <span>ID</span>
+            <span>Date / time</span>
+            <span>Document</span>
+            <span>Status</span>
+            <span></span>
+          </div>
+          ${rows.map((record) => {
+            const kind = record.recordKind;
+            const printed = Boolean(record.printStatus?.[kind]);
+            return `
+              <div class="print-queue-row ${printed ? "printed" : ""}">
+                <strong>${escapeHtml(record.name || "-")}</strong>
+                <span>${escapeHtml(record.patientId || "-")}</span>
+                <span>${escapeHtml(dateTimeLabel(recordTimestamp(record)))}</span>
+                <span>${escapeHtml(printQueueTypeLabel(kind))}</span>
+                <span class="print-queue-status">${printed ? "Printed" : "Pending"}</span>
+                <button class="primary" type="button" data-print-queue-record="${escapeHtml(record.id)}">Print</button>
+              </div>
+            `;
+          }).join("")}
+        `;
+      }
+      function openPrintQueue() {
+        printQueueFilter = "pending";
+        renderPrintQueue();
+        $("#printQueueModal")?.classList.add("open");
+        $("#printQueueModal")?.setAttribute("aria-hidden", "false");
+      }
+      function closePrintQueue() {
+        $("#printQueueModal")?.classList.remove("open");
+        $("#printQueueModal")?.setAttribute("aria-hidden", "true");
+      }
+      function queuePrintHtml(record, kind) {
+        const patient = printQueuePatientFromRecord(record);
+        const rawHtml = printableRecordBody(record);
+        if (kind === "prescription") {
+          return formatPrescriptionPrintHtml(stripDuplicateDocumentTitle(rawHtml, "Prescription"), patient, recordTimestamp(record));
+        }
+        const withoutTitle = stripDuplicateDocumentTitle(rawHtml, documentTitleForMode(kind) || ambientModeLabel(kind));
+        return formatDocumentPrintHtml(withoutTitle, patient, kind, recordTimestamp(record));
+      }
+      function printQueuedDocument(recordId) {
+        const record = medicalRecords.find((item) => item.id === recordId);
+        if (!record) {
+          alert("This queued document could not be found.");
+          return;
+        }
+        const kind = record.recordKind || "visit";
+        if (!printQueueDocumentTypes.includes(kind)) {
+          alert("Only prescriptions, medical certificates, and reply letters can be printed from the staff queue.");
+          return;
+        }
+        if (printQueueRecordDate(record) !== selectedDate) {
+          alert("This document is not for the selected clinic date.");
+          return;
+        }
+        $("#medicalPrintContent").innerHTML = queuePrintHtml(record, kind);
+        pendingPrintQueueItem = { recordId: record.id, kind };
+        document.body.classList.remove("print-smart-chart");
+        document.body.classList.add("print-medical", "print-prescription");
+        window.print();
+      }
+      async function markPendingPrintQueueItemPrinted() {
+        if (!pendingPrintQueueItem) return;
+        const { recordId, kind } = pendingPrintQueueItem;
+        pendingPrintQueueItem = null;
+        const record = medicalRecords.find((item) => item.id === recordId);
+        if (!record || !printQueueDocumentTypes.includes(record.recordKind || "visit") || record.recordKind !== kind) return;
+        const printedAt = new Date().toISOString();
+        const printStatus = { ...(record.printStatus || {}), [kind]: printedAt };
+        record.printStatus = printStatus;
+        renderPrintQueue();
+        await saveMedicalRecordPrintStatus(recordId, printStatus);
+        renderPrintQueue();
+      }
       function treatmentTimelineHtml(records) {
         return `<div class="treatment-summary-print treatment-timeline-print">${records.map((record) => `
           <section class="summary-visit treatment-timeline-entry">
@@ -5657,7 +5833,7 @@ Treatment / Advice:
         (extraLines || []).forEach((line) => pushUniquePrescriptionSentence(instructionParts, line));
         return finishPrescriptionSentence(instructionParts) || prescriptionInstructionText(sourceLine);
       }
-      function formatPrescriptionPrintHtml(html, patient) {
+      function formatPrescriptionPrintHtml(html, patient, createdAtOverride = "") {
         const text = htmlToPlainText(stripDuplicateDocumentTitle(html, "Prescription"));
         const isDemographicLine = (line) => /^(patient\s*name|patient\s*id|uhid|id|mobile)\s*:/i.test(line);
         const lines = text.split("\n")
@@ -5665,7 +5841,8 @@ Treatment / Advice:
           .filter(Boolean)
           .filter((line) => !isDemographicLine(line) && !isPrescriptionSectionHeading(line));
         const { medicineItems, adviceLines } = splitPrescriptionLines(lines);
-        const dateText = activeRecordCreatedAt ? dateLabel(activeRecordCreatedAt.slice(0, 10)) : dateLabel(localDateKey());
+        const printDateSource = createdAtOverride || activeRecordCreatedAt || localDateKey();
+        const dateText = dateLabel(String(printDateSource).slice(0, 10));
         const shouldShowMalayalam = malayalamInstructionsEnabled();
         const medicineRows = medicineItems.map((item, index) => {
           const details = prescriptionLineDetails(item.line);
@@ -5719,8 +5896,9 @@ Treatment / Advice:
           </div>
         `;
       }
-      function formatVisitNotePrintHtml(html, patient) {
-        const dateText = activeRecordCreatedAt ? dateLabel(activeRecordCreatedAt.slice(0, 10)) : dateLabel(localDateKey());
+      function formatVisitNotePrintHtml(html, patient, createdAtOverride = "") {
+        const printDateSource = createdAtOverride || activeRecordCreatedAt || localDateKey();
+        const dateText = dateLabel(String(printDateSource).slice(0, 10));
         const bodyHtml = stripEmptyVitalsHtml(stripDuplicateEmptyVitalsHtml(stripSavedVisitChromeHtml(html)));
         return `
           <div class="prescription-sheet document-print-sheet visit-note-print-sheet">
@@ -5752,9 +5930,10 @@ Treatment / Advice:
       function documentPrintTitle(mode = "certificate") {
         return mode === "reply" ? "REPLY LETTER" : "MEDICAL CERTIFICATE";
       }
-      function formatDocumentPrintHtml(html, patient, mode = "certificate") {
+      function formatDocumentPrintHtml(html, patient, mode = "certificate", createdAtOverride = "") {
         const title = documentPrintTitle(mode);
-        const dateText = activeRecordCreatedAt ? dateLabel(activeRecordCreatedAt.slice(0, 10)) : dateLabel(localDateKey());
+        const printDateSource = createdAtOverride || activeRecordCreatedAt || localDateKey();
+        const dateText = dateLabel(String(printDateSource).slice(0, 10));
         const bodyTitle = documentTitleForMode(mode) || ambientModeLabel(mode);
         const bodyHtml = mode === "certificate"
           ? stripCertificateDemographics(stripDuplicateDocumentTitle(html, bodyTitle))
@@ -6063,12 +6242,15 @@ Treatment / Advice:
         if (dailyTotalCard) dailyTotalCard.hidden = tab === "doctor";
         const topAddPatient = $("#openAddPatientBtn");
         if (topAddPatient) topAddPatient.hidden = tab !== "staff";
+        const printQueueButton = $("#openPrintQueueBtn");
+        if (printQueueButton) printQueueButton.hidden = tab !== "staff";
         const doctorMobileAddPatient = $("#openDoctorMobileAddPatientBtn");
         if (doctorMobileAddPatient) doctorMobileAddPatient.hidden = tab !== "doctor";
         applyAppFeatures();
         if (refresh) {
           renderAfterList();
           renderStats();
+          renderPrintQueue();
           renderWhatsappPreview();
         }
       }
@@ -7434,7 +7616,7 @@ Treatment / Advice:
         }
         alert("Report copied. Open WhatsApp and paste it.");
       }
-      function render() { renderPatientList(); renderAfterList(); renderFollowupList(); renderStats(); renderReport(); renderMessages(); updateAccountsReportControls(); renderAccounts(); renderWhatsappPreview(); renderNeuro(); }
+      function render() { renderPatientList(); renderAfterList(); renderFollowupList(); renderStats(); renderReport(); renderMessages(); updateAccountsReportControls(); renderAccounts(); renderPrintQueue(); renderWhatsappPreview(); renderNeuro(); }
 
       $("#patientForm").addEventListener("submit", (event) => {
         event.preventDefault();
@@ -7720,6 +7902,13 @@ Treatment / Advice:
         if (button.id === "printAccountsBtn") printAccountsReport();
         if (button.id === "closeAccountsReportBtn") { $("#accountsReportOverlay").classList.remove("open"); $("#accountsReportOverlay").setAttribute("aria-hidden", "true"); }
         if (button.id === "savePdfAccountsBtn" || button.id === "printInlineAccountsBtn") { document.body.classList.add("print-accounts"); window.print(); schedulePrintCleanup(); }
+        if (button.id === "openPrintQueueBtn") openPrintQueue();
+        if (button.id === "closePrintQueueBtn") closePrintQueue();
+        if (button.dataset.printQueueFilter) {
+          printQueueFilter = button.dataset.printQueueFilter;
+          renderPrintQueue();
+        }
+        if (button.dataset.printQueueRecord) printQueuedDocument(button.dataset.printQueueRecord);
         if (button.id === "recordSaveBtn") await saveActiveMedicalRecord();
         if (button.id === "recordSaveCloseBtn") { await saveActiveMedicalRecord(); closeMedicalRecordScreen(); }
         if (button.dataset.printSmartChart) printActiveMedicalRecord();
@@ -7768,11 +7957,14 @@ Treatment / Advice:
           closeSettingsModal();
         }
         if (button.dataset.accountDelete) { const id = button.dataset.accountDelete; accounts = accounts.filter((entry) => entry.id !== id); deleteAccountFromCloud(id); renderAccounts(); }
-        if (button.id === "todayBtn") { selectedDate = todayKey; $("#clinicDate").value = selectedDate; save(); render(); }
+        if (button.id === "todayBtn") { selectedDate = todayKey; $("#clinicDate").value = selectedDate; save(); render(); renderPrintQueue(); }
         if (button.id === "prevDateBtn") shiftSelectedDate(-1);
         if (button.id === "nextDateBtn") shiftSelectedDate(1);
       });
-      window.addEventListener("afterprint", cleanupPrintState);
+      window.addEventListener("afterprint", () => {
+        markPendingPrintQueueItemPrinted();
+        cleanupPrintState();
+      });
       window.addEventListener("resize", applyAmbientFloatPosition);
       document.addEventListener("change", (event) => {
         if (event.target.id === "clinicDate") {
@@ -7784,6 +7976,7 @@ Treatment / Advice:
           $("#accountsReportYear").value = selectedDate.slice(0, 4);
           save();
           render();
+          renderPrintQueue();
         }
         if (event.target.matches("#accountsReportRange, #accountsReportMonth, #accountsReportFromMonth, #accountsReportToMonth, #accountsReportYear")) updateAccountsReportControls();
         if (event.target.id === "neuroMonth") {
