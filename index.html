@@ -1279,9 +1279,9 @@
           <button class="secondary" type="button" id="recordMyVoiceSummaryBtn" data-feature="smartChart">Summary</button>
           <button class="secondary" type="button" id="recordDiagnosisBtn" data-feature="diagnosis">Diagnosis</button>
           <button class="secondary" type="button" id="recordCommentsBtn" data-feature="comments">Comments</button>
+          <button class="secondary record-delete-button" type="button" id="recordDeleteBtn" title="Delete note" aria-label="Delete note" hidden>Delete</button>
           <button class="secondary" type="button" id="recordSaveBtn">Save</button>
           <button class="primary" type="button" id="recordSaveCloseBtn">Save & Close</button>
-          <button class="secondary record-delete-button" type="button" id="recordDeleteBtn" title="Delete note" aria-label="Delete note" hidden>Delete</button>
         </div>
       </div>
       <div class="record-body">
@@ -6164,6 +6164,13 @@ Treatment / Advice:
         const activeSavedRecord = medicalRecords.find((record) => record.id === activeRecordId);
         const savedPrintSource = activeSavedRecord?.docs?.printVisit || "";
         const excludedPrescriptionSourceKinds = new Set(["certificate", "reply", "summary"]);
+        if (activeRecordView === "all") {
+          const prescriptionRecord = patientMedicalRecords(patient)
+            .filter((record) => !excludedPrescriptionSourceKinds.has(record.recordKind || "visit"))
+            .map((record) => prescriptionHtmlFromRecord(record))
+            .find((html) => htmlToPlainText(html || "").trim());
+          return prescriptionRecord || "";
+        }
         const addFragment = (html) => {
           const text = htmlToPlainText(html || "").trim();
           const key = text.toLowerCase();
