@@ -1268,6 +1268,8 @@
             <button class="secondary" type="button" id="recordPreviewMenuBtn" aria-haspopup="true">Preview</button>
             <div class="print-menu-panel" role="menu" aria-label="Preview options">
               <button class="secondary" type="button" data-record-preview="prescription" role="menuitem">Prescription</button>
+              <button class="secondary" type="button" data-record-preview="certificate" role="menuitem">Certificate</button>
+              <button class="secondary" type="button" data-record-preview="reply" role="menuitem">Letter</button>
               <button class="secondary" type="button" data-record-preview="visit" role="menuitem">Visit Note</button>
             </div>
           </div>
@@ -3282,7 +3284,10 @@ ${context}`);
         menu.hidden = !activeRecordPatient();
       }
       function selectedRecordPreviewType() {
-        if (activeRecordView === "all" && allEntriesHavePrescription()) return "prescription";
+        if (activeRecordView === "all") {
+          const types = allEntriesPreviewTypes();
+          return types.length === 1 ? types[0] : "";
+        }
         if (!["single", "draft"].includes(activeRecordView)) return "";
         if (activeRecordSource === "ambient" && activeAmbientMode === "reply") return "reply";
         if (activeRecordSource === "ambient" && activeAmbientMode === "certificate") return "certificate";
@@ -3290,11 +3295,24 @@ ${context}`);
         if (selectedVisitNoteHasPrescription()) return "prescription";
         return "";
       }
-      function allEntriesHavePrescription() {
-        if (activeRecordView !== "all") return false;
+      function allEntriesPreviewTypes() {
+        if (activeRecordView !== "all") return [];
         const patient = activeRecordPatient();
-        if (!patient) return false;
-        return Boolean(prescriptionHtmlForCurrentPatient(patient));
+        if (!patient) return [];
+        const types = new Set();
+        if (prescriptionHtmlForCurrentPatient(patient)) types.add("prescription");
+        patientMedicalRecords(patient).forEach((record) => {
+          const kind = record.recordKind || "visit";
+          if (kind === "certificate") types.add("certificate");
+          if (kind === "reply") types.add("reply");
+        });
+        return ["prescription", "certificate", "reply"].filter((type) => types.has(type));
+      }
+      function allEntriesRecordForPreviewType(type = "") {
+        if (activeRecordView !== "all" || !["certificate", "reply"].includes(type)) return null;
+        const patient = activeRecordPatient();
+        if (!patient) return null;
+        return patientMedicalRecords(patient).find((record) => (record.recordKind || "visit") === type) || null;
       }
       function selectedVisitNoteHasPrescription() {
         if (!["single", "draft"].includes(activeRecordView)) return false;
@@ -3312,9 +3330,18 @@ ${context}`);
       function updatePreviewButtonVisibility() {
         const button = $("#recordPreviewBtn");
         const menu = $("#recordPreviewMenu");
+        const menuOptions = [...document.querySelectorAll("[data-record-preview]")];
+        if (activeRecordView === "all") {
+          const allTypes = allEntriesPreviewTypes();
+          if (button) button.hidden = allTypes.length !== 1;
+          if (menu) menu.hidden = allTypes.length < 2;
+          menuOptions.forEach((option) => { option.hidden = !allTypes.includes(option.dataset.recordPreview); });
+          return;
+        }
         const hasVisitOptions = selectedVisitNoteHasPrescription();
         if (button) button.hidden = hasVisitOptions || !selectedRecordPreviewType();
         if (menu) menu.hidden = !hasVisitOptions;
+        menuOptions.forEach((option) => { option.hidden = hasVisitOptions ? !["prescription", "visit"].includes(option.dataset.recordPreview) : true; });
       }
       function clearActiveAddOn(resetAudio = false) {
         if (!activeAddOn) return;
@@ -6136,6 +6163,7 @@ Treatment / Advice:
         const seen = new Set();
         const activeSavedRecord = medicalRecords.find((record) => record.id === activeRecordId);
         const savedPrintSource = activeSavedRecord?.docs?.printVisit || "";
+        const excludedPrescriptionSourceKinds = new Set(["certificate", "reply", "summary"]);
         const addFragment = (html) => {
           const text = htmlToPlainText(html || "").trim();
           const key = text.toLowerCase();
@@ -6143,16 +6171,19 @@ Treatment / Advice:
           seen.add(key);
           fragments.push(html);
         };
-        const activePrescriptionSource = activeRecordDocs.printVisit || savedPrintSource || activeRecordDocs.visit || $("#medicalNoteText").innerHTML;
-        addFragment(activeRecordView !== "all" && activeRecordSource === "ambient" && activeAmbientMode === "prescription"
-          ? stripDuplicateDocumentTitle(activePrescriptionSource, "Prescription")
-          : extractPrescriptionFromVisitHtml(activePrescriptionSource));
+        if (activeRecordView !== "all") {
+          const activePrescriptionSource = activeRecordDocs.printVisit || savedPrintSource || activeRecordDocs.visit || $("#medicalNoteText").innerHTML;
+          addFragment(activeRecordSource === "ambient" && activeAmbientMode === "prescription"
+            ? stripDuplicateDocumentTitle(activePrescriptionSource, "Prescription")
+            : extractPrescriptionFromVisitHtml(activePrescriptionSource));
+        }
         patientMedicalRecords(patient).forEach((record) => {
-          if (record.id === activeRecordId) return;
+          if (activeRecordView !== "all" && record.id === activeRecordId) return;
+          const recordKind = record.recordKind || "visit";
+          if (excludedPrescriptionSourceKinds.has(recordKind)) return;
           const recordDay = record.date || recordTimestamp(record).slice(0, 10);
-          const sameVisitDay = recordDay === activeRecordDate || recordDay === patient.date;
+          const sameVisitDay = activeRecordView === "all" || recordDay === activeRecordDate || recordDay === patient.date;
           if (!sameVisitDay) return;
-          if (!["addon", "prescription"].includes(record.recordKind || "visit")) return;
           addFragment(prescriptionHtmlFromRecord(record));
         });
         return fragments.join("<br>");
@@ -6193,9 +6224,12 @@ Treatment / Advice:
           const rawHtml = visitNotePrintSourceHtml();
           printContent.innerHTML = formatVisitNotePrintHtml(rawHtml, patient);
         } else {
-          const rawHtml = activeRecordDocs.printVisit || activeRecordDocs.visit || $("#medicalNoteText").innerHTML || "";
+          const allEntriesRecord = allEntriesRecordForPreviewType(previewType);
+          const rawHtml = allEntriesRecord
+            ? printableRecordBody(allEntriesRecord)
+            : (activeRecordDocs.printVisit || activeRecordDocs.visit || $("#medicalNoteText").innerHTML || "");
           const withoutTitle = stripDuplicateDocumentTitle(rawHtml, documentTitleForMode(previewType) || ambientModeLabel(previewType));
-          printContent.innerHTML = formatDocumentPrintHtml(withoutTitle, patient, previewType);
+          printContent.innerHTML = formatDocumentPrintHtml(withoutTitle, patient, previewType, allEntriesRecord ? recordTimestamp(allEntriesRecord) : "");
         }
         document.body.classList.remove("print-smart-chart");
         document.body.classList.add("print-medical", "print-prescription");
