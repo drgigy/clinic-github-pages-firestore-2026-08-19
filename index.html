@@ -67,8 +67,8 @@
       .main-tab.whatsapp-tab { min-width: 104px; padding: 0; background: #25d366; color: #fff; box-shadow: inset 0 0 0 2px #128c7e, 0 1px 4px rgba(18, 140, 126, .24); }
       .whatsapp-tab svg { width: 34px; height: 34px; display: block; }
       .nav-date-control { justify-self: end; display: flex; align-items: end; justify-content: flex-end; gap: 10px; min-width: 0; }
-      .nav-action-button { min-width: 132px; white-space: nowrap; }
-      .nav-date-control label { margin: 0; width: 170px; flex: 0 0 170px; }
+      .nav-action-button { min-width: 124px; white-space: nowrap; }
+      .nav-date-control label { margin: 0; width: 122px; flex: 0 0 122px; }
       .nav-date-control input[type="date"] { width: 100%; min-width: 0; }
       #todayBtn { background: var(--primary); color: #fff; box-shadow: inset 0 0 0 2px var(--green-dark), 0 1px 4px rgba(0, 79, 51, .22); }
       .date-step { width: 42px; min-width: 42px; flex: 0 0 42px; padding: 0; font-size: 20px; font-weight: 900; }
@@ -828,7 +828,6 @@
         <div class="nav-left">
           <div class="clinic-name-display" id="clinicNameDisplay"></div>
           <input class="doctor-phone-hidden" id="doctorPhone" value="" aria-label="Doctor WhatsApp number" />
-          <button class="primary nav-action-button" id="openAddPatientBtn" type="button" data-feature="staff" hidden>Add Patient</button>
           <span class="signed-in-user" id="signedInUser"></span>
         </div>
         <div class="main-tabs" aria-label="Clinic workspace">
@@ -844,6 +843,7 @@
           </button>
         </div>
         <div class="nav-date-control">
+          <button class="primary nav-action-button" id="openAddPatientBtn" type="button" data-feature="staff" hidden>Add Patient</button>
           <button class="secondary nav-action-button" id="openPrintQueueBtn" type="button" data-feature="staff" hidden>Print Queue</button>
           <button class="secondary date-step" id="prevDateBtn" type="button" title="Previous day" aria-label="Previous day">‹</button>
           <label>
