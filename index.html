@@ -1272,7 +1272,7 @@
             </div>
           </div>
           <button class="secondary" type="button" id="recordQueuePrintBtn" hidden>Send to Print Queue</button>
-          <button class="secondary" type="button" id="recordAddOnBtn" data-feature="woyzNote" hidden>Add On</button>
+          <button class="secondary" type="button" id="recordAddOnBtn" data-feature="woyzNote" hidden>Review Note</button>
           <button class="secondary smart-chart-button" type="button" id="recordSummaryBtn" data-feature="smartChart" style="background:#dc2626;color:#fff;box-shadow:inset 0 0 0 2px #991b1b,0 1px 4px rgba(153,27,27,.22);">Smart Chart</button>
           <button class="secondary" type="button" id="recordMyVoiceSummaryBtn" data-feature="smartChart">Summary</button>
           <button class="secondary" type="button" id="recordDiagnosisBtn" data-feature="diagnosis">Diagnosis</button>
@@ -2746,7 +2746,7 @@
       }
       function ambientModeLabel(mode = activeAmbientMode) {
         if (mode === "summary") return "Smart Chart";
-        if (mode === "addon") return "Add On";
+        if (mode === "addon") return "Review Note";
         return ambientModes[mode] || ambientModes.visit;
       }
       function ambientFloatModeLabel(mode = activeAmbientMode) {
@@ -2755,7 +2755,7 @@
           prescription: "Rx",
           certificate: "Certificate",
           reply: "Letter",
-          addon: "Add On"
+          addon: "Review Note"
         }[mode] || "Visit note";
       }
       function prescriptionLanguagePrompt() {
@@ -2851,47 +2851,62 @@ Never add clinical information that was not spoken.
 ${context}`);
         }
         if (mode === "addon") {
-          return languageAdjustedAmbientPrompt(`You are a clinical review add-on assistant helping a doctor create a separate review draft note after an OPD consultation.
+          return languageAdjustedAmbientPrompt(`You are a clinical review note assistant helping a doctor create a concise OPD review note from ambient audio.
 
 Correct spelling and grammar. Keep the original meaning exactly.
 Do not add, infer, assume, or hallucinate clinical information.
 Do not remove any dictated detail.
+If something is unclear, write it as unclear instead of guessing.
 Return plain text only. Do not return JSON. Do not use markdown fences.
-Do not create a full visit note. Do not include patient demographics.
+Do not include patient demographics such as patient name, age, sex, ID, UHID, or mobile in the note body.
 
-Use only these headings, in this order. Include Vitals as the first heading only if at least one vital value was dictated. For all other headings, omit headings with no content:
+Use the same dictation logic as Visit Note. Use these headings, in this order, but omit a heading completely if no information was dictated for that section. Include Vitals as the first heading only if at least one vital value was dictated:
 
 Vitals:
 
 Review Note:
 
+History of Present Illness:
+
+Past Medical or Surgical History:
+
 Allergies:
 
+Examination Findings:
+
 Review of Investigations:
+
+Current Medications:
+
+Diagnosis:
 
 Prescription:
 
 Advice / Instructions:
 
 Preserve every dictated clinical detail. Do not add, infer, assume, or delete clinical information.
-Plain review text should go under Review Note.
-Move allergy/allergen information under Allergies.
-Move BP, blood pressure, pulse, heart rate, SpO2, oxygen saturation, height, weight, and BMI under Vitals.
-Under Vitals, if used, show one compact line with these labels in this order: "BP: ; Pulse rate: ; Oxygen saturation: ; Height: ; Weight: ; BMI:". Fill only dictated vitals, for example "BP: 120/80 mmHg; Pulse rate: 78/min; Oxygen saturation: 98%; Height: 170 cm; Weight: 70 kg; BMI: 24.2 kg/m2". If height and weight are both dictated and BMI is not dictated, calculate BMI from height and weight and add it to the same line. Do not guess missing vitals. If no vital value was dictated, do not create a Vitals heading or blank vital labels.
-Move MRI, CT, EEG, NCS, ECG, scan, imaging, blood reports, lab values, and report-review content under Review of Investigations.
+Plain review/update text should go under Review Note.
 
-Under Review of Investigations, arrange investigations like the main visit-note template:
-- organize by test/report name and date when dictated
-- put each investigation/report as a separate numbered item
-- under each imaging/report item, place each finding on a separate line
-- for blood reports, include each value on a separate line and add conventional units when absent
+Vitals rule:
+- Under Vitals, if used, show one compact line with these labels in this order: "BP: ; Pulse rate: ; Oxygen saturation: ; Height: ; Weight: ; BMI:".
+- Fill only dictated vitals, for example "BP: 120/80 mmHg; Pulse rate: 78/min; Oxygen saturation: 98%; Height: 170 cm; Weight: 70 kg; BMI: 24.2 kg/m2".
+- If height and weight are both dictated and BMI is not dictated, calculate BMI from height and weight and add it to the same line.
+- Do not guess missing vitals.
+- If no vital value was dictated, do not create a Vitals heading or blank vital labels.
 
-If medicines are dictated, use Prescription and format every medicine like this:
+Review of Investigations rule:
+- Keep every dictated investigation value with its unit. If a lab value is dictated without a unit, add the conventional unit where clinically standard.
+- Organize by test/report name and date when dictated.
+- Put each investigation/report as a separate numbered item.
+- Under each imaging/report item, place each finding on a separate line.
+
+Prescription rule:
 ${prescriptionLanguagePrompt()}
 ${malayalamPromptOverride()}
 
 If advice, review plans, follow-up advice, precautions, or investigations to be done are dictated, place them under Advice / Instructions.
-Do not create Chief Complaints, History of Present Illness, Examination, Diagnosis, or Orders headings.
+If investigations are advised under Advice, place each investigation on its own separate line as a simple bullet point. Do not combine multiple investigations in one sentence.
+If the doctor dictates the word "orders", do not create an Orders heading. Route medicine orders into the numbered prescription list, and route non-medicine orders into Advice / Instructions.
 
 Never add clinical information that was not spoken.
 
@@ -3326,7 +3341,7 @@ ${context}`);
           return;
         }
         if (draftMedicalRecord?.source === "ambient") {
-          alert("Please save or discard the current WOYZ draft before starting Add On.");
+          alert("Please save or discard the current WOYZ draft before starting Review Note.");
           return;
         }
         persistCurrentRecordTab();
@@ -3346,10 +3361,10 @@ ${context}`);
         ambientState = "idle";
         ambientStopShouldProcess = false;
         ambientFloatPosition = null;
-        $("#recordStatus").textContent = "Add On draft. Press Space or mic to record.";
+        $("#recordStatus").textContent = "Review Note draft. Press Space or mic to record.";
         renderPreviousRecords();
         setAmbientButtons();
-        setAmbientStatus("Add On ready. Press Space or mic to record.");
+        setAmbientStatus("Review Note ready. Press Space or mic to record.");
       }
       function beginAmbientFloatDrag(event) {
         const dock = $("#ambientDock");
@@ -3641,12 +3656,11 @@ ${context}`);
       }
       function formatAddOnReviewText(text) {
         const lines = String(text || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-        const blankVitalsLine = "BP: ; Pulse rate: ; Oxygen saturation: ; Height: ; Weight: ; BMI:";
-        if (!lines.length) return `Vitals:\n${blankVitalsLine}`;
+        if (!lines.length) return "Review Note:";
         const hasVitals = lines.some((line) => /^vitals\s*:?\s*$/i.test(line) || /^vitals\s*:/i.test(line));
         const hasReviewNote = lines.some((line) => /^review note\s*:?\s*$/i.test(line));
         const withReview = hasReviewNote ? lines : ["Review Note:", ...lines];
-        return hasVitals ? withReview.join("\n") : ["Vitals:", blankVitalsLine, ...withReview].join("\n");
+        return hasVitals ? withReview.join("\n") : withReview.join("\n");
       }
       function parseUnregisteredVisitOutput(text) {
         const raw = String(text || "").trim();
@@ -3729,7 +3743,7 @@ ${context}`);
               openDraftMedicalEntry(draftId);
               showAmbientResult(reviewText);
             }
-            $("#recordStatus").textContent = "Add On draft ready. Review and save.";
+            $("#recordStatus").textContent = "Review Note draft ready. Review and save.";
             return;
           }
           if (isPendingDoctorPatient(patient) && processingMode === "visit") {
