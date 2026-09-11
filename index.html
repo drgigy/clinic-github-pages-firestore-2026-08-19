@@ -263,7 +263,7 @@
       .print-menu { position: relative; display: inline-flex; }
       .print-menu::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 10px; }
       .print-menu-panel { position: absolute; top: calc(100% + 6px); right: 0; z-index: 8; min-width: 190px; display: grid; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius); background: #fff; box-shadow: 0 14px 34px rgba(16, 32, 43, .15); opacity: 0; visibility: hidden; pointer-events: none; transform: translateY(-4px); transition: opacity .15s ease 1.1s, transform .15s ease 1.1s, visibility 0s linear 1.3s; }
-      #recordPreviewMenu .print-menu-panel { left: 0; right: auto; }
+      #recordPreviewMenu .print-menu-panel { left: auto; right: 0; }
       .print-menu:hover .print-menu-panel,
       .print-menu:focus-within .print-menu-panel { opacity: 1; visibility: visible; pointer-events: auto; transform: translateY(0); transition-delay: 0s; }
       .print-menu-panel button { width: 100%; justify-content: flex-start; background: #f0f5f7; color: var(--ink); box-shadow: none; }
@@ -1269,10 +1269,10 @@
           <div class="print-menu" id="recordPreviewMenu" hidden>
             <button class="secondary" type="button" id="recordPreviewMenuBtn" aria-haspopup="true">Preview</button>
             <div class="print-menu-panel" role="menu" aria-label="Preview options">
-              <button class="secondary" type="button" data-record-preview="prescription" role="menuitem">Preview Prescription</button>
-              <button class="secondary" type="button" data-record-preview="certificate" role="menuitem">Preview Certificate</button>
-              <button class="secondary" type="button" data-record-preview="reply" role="menuitem">Preview Letter</button>
-              <button class="secondary" type="button" data-record-preview="visit" role="menuitem">Preview Visit Note</button>
+              <button class="secondary" type="button" data-record-preview="prescription" role="menuitem">Prescription</button>
+              <button class="secondary" type="button" data-record-preview="visit" role="menuitem">Visit Note</button>
+              <button class="secondary" type="button" data-record-preview="reply" role="menuitem">Letter</button>
+              <button class="secondary" type="button" data-record-preview="certificate" role="menuitem">Certificate</button>
             </div>
           </div>
           <button class="secondary" type="button" id="recordQueuePrintBtn" hidden>Send to Print Queue</button>
@@ -1353,6 +1353,7 @@
     <div class="medical-print-content" id="medicalPrintContent"></div>
     <section class="print-preview-modal" id="printPreviewModal" aria-hidden="true">
       <div class="print-preview-toolbar">
+        <button class="primary" type="button" id="queuePrintPreviewBtn">Print</button>
         <button class="secondary" type="button" id="closePrintPreviewBtn">Close</button>
       </div>
       <div class="print-preview-sheet" id="printPreviewSheet"></div>
@@ -1502,9 +1503,10 @@
       let activeRecordDirty = false;
       let activeRecordType = "visit";
       let activeRecordDocs = {};
-      const printQueueDocumentTypes = ["prescription", "certificate", "reply"];
+      const printQueueDocumentTypes = ["prescription", "certificate", "reply", "visit"];
       let printQueueFilter = "pending";
       let pendingPrintQueueItem = null;
+      let activePreviewQueueRequest = null;
       let activeRecordSource = "typed";
       let draftMedicalRecord = null;
       let extraDraftMedicalRecords = [];
@@ -3320,8 +3322,7 @@ ${context}`);
       function updateAddOnButtonVisibility() {
         const button = $("#recordAddOnBtn");
         if (!button) return;
-        const isSavedVisit = activeRecordView === "single" && Boolean(activeRecordId) && activeAmbientMode === "visit";
-        button.hidden = !isSavedVisit;
+        button.hidden = true;
         button.disabled = Boolean(activeAddOn && ["recording", "paused", "processing"].includes(ambientState));
       }
       function updateTemplateButtonVisibility() {
@@ -3382,10 +3383,9 @@ ${context}`);
         const button = $("#recordPreviewBtn");
         const menu = $("#recordPreviewMenu");
         const menuOptions = [...document.querySelectorAll("[data-record-preview]")];
-        const types = selectedRecordPreviewTypes();
-        if (button) button.hidden = types.length !== 1;
-        if (menu) menu.hidden = types.length < 2;
-        menuOptions.forEach((option) => { option.hidden = !types.includes(option.dataset.recordPreview); });
+        if (button) button.hidden = true;
+        if (menu) menu.hidden = !activeRecordPatient();
+        menuOptions.forEach((option) => { option.hidden = false; });
       }
       function clearActiveAddOn(resetAudio = false) {
         if (!activeAddOn) return;
@@ -4537,7 +4537,8 @@ Treatment / Advice:
         return {
           prescription: "Prescription",
           certificate: "Medical Certificate",
-          reply: "Reply Letter"
+          reply: "Reply Letter",
+          visit: "Visit Note"
         }[kind] || "";
       }
       function printQueueRecordDate(record) {
@@ -4624,6 +4625,9 @@ Treatment / Advice:
         if (kind === "prescription") {
           return formatPrescriptionPrintHtml(stripDuplicateDocumentTitle(rawHtml, "Prescription"), patient, recordTimestamp(record));
         }
+        if (kind === "visit") {
+          return formatVisitNotePrintHtml(rawHtml, patient, recordTimestamp(record));
+        }
         const withoutTitle = stripDuplicateDocumentTitle(rawHtml, documentTitleForMode(kind) || ambientModeLabel(kind));
         return formatDocumentPrintHtml(withoutTitle, patient, kind, recordTimestamp(record));
       }
@@ -4635,7 +4639,7 @@ Treatment / Advice:
         }
         const kind = record.recordKind || "visit";
         if (!printQueueDocumentTypes.includes(kind)) {
-          alert("Only prescriptions, medical certificates, and reply letters can be printed from the staff queue.");
+          alert("Only explicitly queued prescriptions, visit notes, medical certificates, and reply letters can be printed from the staff queue.");
           return;
         }
         if (printQueueRecordDate(record) !== selectedDate) {
@@ -4686,7 +4690,7 @@ Treatment / Advice:
         const record = medicalRecords.find((item) => item.id === activeRecordId);
         if (!record) return "";
         const kind = record.recordKind || "visit";
-        if (printQueueDocumentTypes.includes(kind)) return "";
+        if (["prescription", "certificate", "reply", "summary"].includes(kind)) return "";
         const sourceHtml = activeRecordDocs.printVisit || record.docs?.printVisit || activeRecordDocs.visit || printableRecordBody(record) || $("#medicalNoteText")?.innerHTML || "";
         return extractPrescriptionFromVisitHtml(sourceHtml || "");
       }
@@ -4704,6 +4708,9 @@ Treatment / Advice:
       function updateQueuePrintButtonVisibility() {
         const button = $("#recordQueuePrintBtn");
         if (!button) return;
+        button.hidden = true;
+        button.disabled = true;
+        return;
         const record = activeQueueableRecord();
         const visitPrescriptionHtml = selectedVisitPrescriptionHtml();
         button.hidden = !record && !visitPrescriptionHtml;
@@ -4798,6 +4805,87 @@ Treatment / Advice:
         renderPrintQueue();
         await saveMedicalRecordPrintQueue(record.id, printQueue);
         $("#recordStatus").textContent = `${printQueueTypeLabel(kind)} sent to staff print queue.`;
+      }
+      async function queueRecordForStaffPrint(record, kind) {
+        if (!record || !printQueueDocumentTypes.includes(kind) || (record.recordKind || "visit") !== kind) {
+          alert("Please select a valid document before sending it to the print queue.");
+          return false;
+        }
+        const queuedAt = new Date().toISOString();
+        const printQueue = {
+          ...(record.printQueue || {}),
+          [kind]: {
+            queuedAt,
+            queuedByUid: currentUserId(),
+            queuedByName: doctorNameForUid(currentUserId())
+          }
+        };
+        record.printQueue = printQueue;
+        renderPrintQueue();
+        await saveMedicalRecordPrintQueue(record.id, printQueue);
+        $("#recordStatus").textContent = "The print has been sent to the printing queue.";
+        alert("The print has been sent to the printing queue.");
+        return true;
+      }
+      async function queuePreviewDocumentForStaffPrint() {
+        if (!activePreviewQueueRequest) {
+          alert("Please open a valid preview first.");
+          return;
+        }
+        const { type, recordId, prescriptionHtml } = activePreviewQueueRequest;
+        const record = recordId ? medicalRecords.find((item) => item.id === recordId) : null;
+        if (type === "prescription") {
+          if (!record || !prescriptionHtml) {
+            alert("Please select a valid prescription.");
+            return;
+          }
+          if ((record.recordKind || "visit") === "prescription") {
+            await queueRecordForStaffPrint(record, "prescription");
+            return;
+          }
+          const existingRecord = queuedPrescriptionRecordForVisit(record.id);
+          const queuedAt = existingRecord?.printQueue?.prescription?.queuedAt || new Date().toISOString();
+          const printQueue = {
+            ...(existingRecord?.printQueue || {}),
+            prescription: {
+              queuedAt,
+              queuedByUid: currentUserId(),
+              queuedByName: doctorNameForUid(currentUserId()),
+              sourceRecordId: record.id
+            }
+          };
+          const queuedRecord = buildQueuedPrescriptionRecord(record, prescriptionHtml, printQueue, existingRecord);
+          medicalRecords = [queuedRecord, ...medicalRecords.filter((item) => item.id !== queuedRecord.id)];
+          renderPreviousRecords();
+          renderPrintQueue();
+          await saveMedicalRecordToCloud(queuedRecord);
+          $("#recordStatus").textContent = "The print has been sent to the printing queue.";
+          alert("The print has been sent to the printing queue.");
+          return;
+        }
+        if (type === "visit") {
+          if (!record || (record.recordKind || "visit") !== "visit") {
+            alert("Please save and select a valid visit note.");
+            return;
+          }
+          await queueRecordForStaffPrint(record, "visit");
+          return;
+        }
+        if (type === "reply") {
+          if (!record || (record.recordKind || "visit") !== "reply") {
+            alert("Please select a valid letter.");
+            return;
+          }
+          await queueRecordForStaffPrint(record, "reply");
+          return;
+        }
+        if (type === "certificate") {
+          if (!record || (record.recordKind || "visit") !== "certificate") {
+            alert("Please select a valid certificate.");
+            return;
+          }
+          await queueRecordForStaffPrint(record, "certificate");
+        }
       }
       function treatmentTimelineHtml(records) {
         return `<div class="treatment-summary-print treatment-timeline-print">${records.map((record) => `
@@ -6343,26 +6431,49 @@ Treatment / Advice:
         if (!patient) return;
         const previewType = typeOverride || selectedRecordPreviewType();
         if (!previewType) return;
+        activePreviewQueueRequest = null;
         if (["single", "draft"].includes(activeRecordView)) persistCurrentRecordTab();
         const printContent = $("#medicalPrintContent");
         printContent?.classList.remove("smart-print-content");
+        const selectedRecord = activeRecordId ? medicalRecords.find((record) => record.id === activeRecordId) : null;
+        const selectedKind = selectedRecord?.recordKind || (activeRecordSource === "ambient" ? activeAmbientMode : "visit") || "visit";
         if (previewType === "prescription") {
+          if (!["single", "draft"].includes(activeRecordView)) {
+            alert("Please select a valid prescription.");
+            return;
+          }
           const prescriptionHtml = prescriptionHtmlForCurrentPatient(patient);
           if (!prescriptionHtml) {
-            alert("No prescription section found in this visit note.");
+            alert("Please select a valid prescription.");
             return;
           }
           printContent.innerHTML = formatPrescriptionPrintHtml(prescriptionHtml, patient);
+          activePreviewQueueRequest = { type: "prescription", recordId: activeRecordId, prescriptionHtml };
         } else if (previewType === "visit") {
+          if (!["single", "draft"].includes(activeRecordView) || ["prescription", "certificate", "reply", "summary"].includes(selectedKind)) {
+            alert("Please select a valid visit note.");
+            return;
+          }
           const rawHtml = visitNotePrintSourceHtml();
+          if (!htmlToPlainText(rawHtml || "").trim()) {
+            alert("Please select a valid visit note.");
+            return;
+          }
           printContent.innerHTML = formatVisitNotePrintHtml(rawHtml, patient);
+          activePreviewQueueRequest = { type: "visit", recordId: activeRecordId };
         } else {
-          const allEntriesRecord = allEntriesRecordForPreviewType(previewType);
-          const rawHtml = allEntriesRecord
-            ? printableRecordBody(allEntriesRecord)
-            : (activeRecordDocs.printVisit || activeRecordDocs.visit || $("#medicalNoteText").innerHTML || "");
+          if (activeRecordView !== "single" || selectedKind !== previewType) {
+            alert(previewType === "reply" ? "Please select a valid letter." : "Please select a valid certificate.");
+            return;
+          }
+          const rawHtml = printableRecordBody(selectedRecord) || activeRecordDocs.printVisit || activeRecordDocs.visit || $("#medicalNoteText").innerHTML || "";
           const withoutTitle = stripDuplicateDocumentTitle(rawHtml, documentTitleForMode(previewType) || ambientModeLabel(previewType));
-          printContent.innerHTML = formatDocumentPrintHtml(withoutTitle, patient, previewType, allEntriesRecord ? recordTimestamp(allEntriesRecord) : "");
+          if (!htmlToPlainText(withoutTitle || "").trim()) {
+            alert(previewType === "reply" ? "Please select a valid letter." : "Please select a valid certificate.");
+            return;
+          }
+          printContent.innerHTML = formatDocumentPrintHtml(withoutTitle, patient, previewType, selectedRecord ? recordTimestamp(selectedRecord) : "");
+          activePreviewQueueRequest = { type: previewType, recordId: activeRecordId };
         }
         document.body.classList.remove("print-smart-chart");
         document.body.classList.add("print-medical", "print-prescription");
@@ -6379,6 +6490,8 @@ Treatment / Advice:
         if (!modal || !sheet || !content) return;
         const isPrescriptionPreview = document.body.classList.contains("print-prescription");
         const isSmartPreview = document.body.classList.contains("print-smart-chart");
+        const queueButton = $("#queuePrintPreviewBtn");
+        if (queueButton) queueButton.hidden = !activePreviewQueueRequest;
         sheet.innerHTML = "";
         sheet.classList.toggle("print-prescription-preview", isPrescriptionPreview);
         sheet.classList.toggle("print-smart-preview", isSmartPreview);
@@ -6390,6 +6503,7 @@ Treatment / Advice:
         cleanupPrintState();
       }
       function closePrintPreview() {
+        activePreviewQueueRequest = null;
         $("#printPreviewModal")?.classList.remove("open");
         $("#printPreviewModal")?.setAttribute("aria-hidden", "true");
         const sheet = $("#printPreviewSheet");
@@ -8187,6 +8301,7 @@ Treatment / Advice:
         if (button.dataset.recordPreview) previewSelectedMedicalRecord(button.dataset.recordPreview);
         if (button.id === "recordPreviewBtn") previewSelectedMedicalRecord();
         if (button.id === "recordQueuePrintBtn") await queueActiveDocumentForStaffPrint();
+        if (button.id === "queuePrintPreviewBtn") await queuePreviewDocumentForStaffPrint();
         if (button.id === "closePrintPreviewBtn") closePrintPreview();
         if (button.id === "recordAddOnBtn") startRecordAddOn();
         if (button.id === "recordSummaryBtn") showSmartChart();
