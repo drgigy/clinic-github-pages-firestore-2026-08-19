@@ -4630,24 +4630,105 @@ Treatment / Advice:
         const record = medicalRecords.find((item) => item.id === activeRecordId);
         return isPrintQueueRecord(record) ? record : null;
       }
+      function selectedVisitPrescriptionHtml() {
+        if (activeRecordView !== "single" || !activeRecordId) return "";
+        const record = medicalRecords.find((item) => item.id === activeRecordId);
+        if (!record) return "";
+        const kind = record.recordKind || "visit";
+        if (printQueueDocumentTypes.includes(kind)) return "";
+        const sourceHtml = activeRecordDocs.printVisit || record.docs?.printVisit || activeRecordDocs.visit || printableRecordBody(record) || $("#medicalNoteText")?.innerHTML || "";
+        return extractPrescriptionFromVisitHtml(sourceHtml || "");
+      }
+      function queuedPrescriptionRecordForVisit(sourceRecordId) {
+        if (!sourceRecordId) return null;
+        return medicalRecords.find((record) =>
+          (record.recordKind || "visit") === "prescription" &&
+          (record.sourceRecordId === sourceRecordId || record.id === `${sourceRecordId}_prescription`)
+        ) || null;
+      }
+      function activeVisitPrescriptionQueueRecord() {
+        if (!selectedVisitPrescriptionHtml()) return null;
+        return queuedPrescriptionRecordForVisit(activeRecordId);
+      }
       function updateQueuePrintButtonVisibility() {
         const button = $("#recordQueuePrintBtn");
         if (!button) return;
         const record = activeQueueableRecord();
-        button.hidden = !record;
-        if (!record) return;
+        const visitPrescriptionHtml = selectedVisitPrescriptionHtml();
+        button.hidden = !record && !visitPrescriptionHtml;
+        if (!record && !visitPrescriptionHtml) return;
+        if (!record && visitPrescriptionHtml) {
+          const queuedRecord = activeVisitPrescriptionQueueRecord();
+          const queued = Boolean(queuedRecord?.printQueue?.prescription?.queuedAt);
+          button.textContent = queued ? "Prescription Sent to Queue" : "Send Prescription to Queue";
+          button.disabled = queued;
+          return;
+        }
         const kind = record.recordKind || "visit";
         const queued = Boolean(record.printQueue?.[kind]?.queuedAt);
         button.textContent = queued ? "Sent to Print Queue" : "Send to Print Queue";
         button.disabled = queued;
       }
+      function buildQueuedPrescriptionRecord(sourceRecord, prescriptionHtml, printQueue, existingRecord = null) {
+        const createdAt = existingRecord?.createdAt || new Date().toISOString();
+        const recordId = existingRecord?.id || `${sourceRecord.id}_prescription`;
+        return {
+          ...(existingRecord || {}),
+          id: recordId,
+          sourceRecordId: sourceRecord.id,
+          patientAppointmentId: sourceRecord.patientAppointmentId,
+          patientId: sourceRecord.patientId || "",
+          patientKey: sourceRecord.patientKey || "",
+          name: sourceRecord.name || "",
+          age: sourceRecord.age || "",
+          sex: sourceRecord.sex || "",
+          mobile: sourceRecord.mobile || "",
+          diagnosis: sourceRecord.diagnosis || "",
+          customDiagnosis: sourceRecord.customDiagnosis || "",
+          date: sourceRecord.date || recordTimestamp(sourceRecord).slice(0, 10),
+          note: htmlToPlainText(prescriptionHtml),
+          noteHtml: prescriptionHtml,
+          docs: { visit: prescriptionHtml },
+          details: sourceRecord.details || {},
+          source: "ambient",
+          recordKind: "prescription",
+          printQueue,
+          ownerUid: currentUserId(),
+          doctorName: doctorNameForUid(currentUserId()),
+          createdAt,
+          updatedAt: new Date().toISOString()
+        };
+      }
       async function queueActiveDocumentForStaffPrint() {
-        const record = activeQueueableRecord();
+        let record = activeQueueableRecord();
+        let kind = record?.recordKind || "";
         if (!record) {
-          alert("Only saved prescriptions, medical certificates, and reply letters can be sent to the staff print queue.");
+          const sourceRecord = medicalRecords.find((item) => item.id === activeRecordId);
+          const prescriptionHtml = selectedVisitPrescriptionHtml();
+          if (!sourceRecord || !prescriptionHtml) {
+            alert("Only saved prescriptions, medical certificates, and reply letters can be sent to the staff print queue.");
+            return;
+          }
+          const existingRecord = queuedPrescriptionRecordForVisit(sourceRecord.id);
+          const queuedAt = existingRecord?.printQueue?.prescription?.queuedAt || new Date().toISOString();
+          const printQueue = {
+            ...(existingRecord?.printQueue || {}),
+            prescription: {
+              queuedAt,
+              queuedByUid: currentUserId(),
+              queuedByName: doctorNameForUid(currentUserId()),
+              sourceRecordId: sourceRecord.id
+            }
+          };
+          record = buildQueuedPrescriptionRecord(sourceRecord, prescriptionHtml, printQueue, existingRecord);
+          medicalRecords = [record, ...medicalRecords.filter((item) => item.id !== record.id)];
+          updateQueuePrintButtonVisibility();
+          renderPreviousRecords();
+          renderPrintQueue();
+          await saveMedicalRecordToCloud(record);
+          $("#recordStatus").textContent = "Prescription sent to staff print queue.";
           return;
         }
-        const kind = record.recordKind || "visit";
         if (!printQueueDocumentTypes.includes(kind)) {
           alert("Only prescriptions, medical certificates, and reply letters can be sent to the staff print queue.");
           return;
