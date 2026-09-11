@@ -3282,12 +3282,19 @@ ${context}`);
         menu.hidden = !activeRecordPatient();
       }
       function selectedRecordPreviewType() {
+        if (activeRecordView === "all" && allEntriesHavePrescription()) return "prescription";
         if (!["single", "draft"].includes(activeRecordView)) return "";
         if (activeRecordSource === "ambient" && activeAmbientMode === "reply") return "reply";
         if (activeRecordSource === "ambient" && activeAmbientMode === "certificate") return "certificate";
         if (activeRecordSource === "ambient" && activeAmbientMode === "prescription") return "prescription";
         if (selectedVisitNoteHasPrescription()) return "prescription";
         return "";
+      }
+      function allEntriesHavePrescription() {
+        if (activeRecordView !== "all") return false;
+        const patient = activeRecordPatient();
+        if (!patient) return false;
+        return Boolean(prescriptionHtmlForCurrentPatient(patient));
       }
       function selectedVisitNoteHasPrescription() {
         if (!["single", "draft"].includes(activeRecordView)) return false;
