@@ -1269,10 +1269,10 @@
           <div class="print-menu" id="recordPreviewMenu" hidden>
             <button class="secondary" type="button" id="recordPreviewMenuBtn" aria-haspopup="true">Preview</button>
             <div class="print-menu-panel" role="menu" aria-label="Preview options">
-              <button class="secondary" type="button" data-record-preview="prescription" role="menuitem">Prescription</button>
-              <button class="secondary" type="button" data-record-preview="certificate" role="menuitem">Certificate</button>
-              <button class="secondary" type="button" data-record-preview="reply" role="menuitem">Letter</button>
-              <button class="secondary" type="button" data-record-preview="visit" role="menuitem">Visit Note</button>
+              <button class="secondary" type="button" data-record-preview="prescription" role="menuitem">Preview Prescription</button>
+              <button class="secondary" type="button" data-record-preview="certificate" role="menuitem">Preview Certificate</button>
+              <button class="secondary" type="button" data-record-preview="reply" role="menuitem">Preview Letter</button>
+              <button class="secondary" type="button" data-record-preview="visit" role="menuitem">Preview Visit Note</button>
             </div>
           </div>
           <button class="secondary" type="button" id="recordQueuePrintBtn" hidden>Send to Print Queue</button>
@@ -3308,16 +3308,21 @@ ${context}`);
         menu.hidden = !activeRecordPatient();
       }
       function selectedRecordPreviewType() {
+        const types = selectedRecordPreviewTypes();
+        return types.length === 1 ? types[0] : "";
+      }
+      function selectedRecordPreviewTypes() {
         if (activeRecordView === "all") {
-          const types = allEntriesPreviewTypes();
-          return types.length === 1 ? types[0] : "";
+          return allEntriesPreviewTypes();
         }
-        if (!["single", "draft"].includes(activeRecordView)) return "";
-        if (activeRecordSource === "ambient" && activeAmbientMode === "reply") return "reply";
-        if (activeRecordSource === "ambient" && activeAmbientMode === "certificate") return "certificate";
-        if (activeRecordSource === "ambient" && activeAmbientMode === "prescription") return "prescription";
-        if (selectedVisitNoteHasPrescription()) return "prescription";
-        return "";
+        if (!["single", "draft"].includes(activeRecordView)) return [];
+        if (activeRecordSource === "ambient" && activeAmbientMode === "reply") return ["reply"];
+        if (activeRecordSource === "ambient" && activeAmbientMode === "certificate") return ["certificate"];
+        if (activeRecordSource === "ambient" && activeAmbientMode === "prescription") return ["prescription"];
+        if (activeRecordSource === "ambient" && activeAmbientMode === "summary") return [];
+        const types = ["visit"];
+        if (selectedVisitNoteHasPrescription()) types.unshift("prescription");
+        return types;
       }
       function allEntriesPreviewTypes() {
         if (activeRecordView !== "all") return [];
@@ -3355,17 +3360,10 @@ ${context}`);
         const button = $("#recordPreviewBtn");
         const menu = $("#recordPreviewMenu");
         const menuOptions = [...document.querySelectorAll("[data-record-preview]")];
-        if (activeRecordView === "all") {
-          const allTypes = allEntriesPreviewTypes();
-          if (button) button.hidden = allTypes.length !== 1;
-          if (menu) menu.hidden = allTypes.length < 2;
-          menuOptions.forEach((option) => { option.hidden = !allTypes.includes(option.dataset.recordPreview); });
-          return;
-        }
-        const hasVisitOptions = selectedVisitNoteHasPrescription();
-        if (button) button.hidden = hasVisitOptions || !selectedRecordPreviewType();
-        if (menu) menu.hidden = !hasVisitOptions;
-        menuOptions.forEach((option) => { option.hidden = hasVisitOptions ? !["prescription", "visit"].includes(option.dataset.recordPreview) : true; });
+        const types = selectedRecordPreviewTypes();
+        if (button) button.hidden = types.length !== 1;
+        if (menu) menu.hidden = types.length < 2;
+        menuOptions.forEach((option) => { option.hidden = !types.includes(option.dataset.recordPreview); });
       }
       function clearActiveAddOn(resetAudio = false) {
         if (!activeAddOn) return;
