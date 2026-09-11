@@ -3276,9 +3276,14 @@ ${context}`);
       }
       function selectedVisitNoteHasPrescription() {
         if (!["single", "draft"].includes(activeRecordView)) return false;
-        if (activeRecordSource === "ambient" && ["prescription", "certificate", "reply", "summary", "addon"].includes(activeAmbientMode)) return false;
+        if (activeRecordSource === "ambient" && ["prescription", "certificate", "reply", "summary"].includes(activeAmbientMode)) return false;
         const activeSavedRecord = medicalRecords.find((record) => record.id === activeRecordId);
-        const sourceHtml = activeRecordDocs.printVisit || activeSavedRecord?.docs?.printVisit || activeRecordDocs.visit || $("#medicalNoteText")?.innerHTML || "";
+        const sourceHtml = activeRecordDocs.printVisit
+          || activeSavedRecord?.docs?.printVisit
+          || activeRecordDocs.visit
+          || (activeSavedRecord ? printableRecordBody(activeSavedRecord) : "")
+          || $("#medicalNoteText")?.innerHTML
+          || "";
         return Boolean(extractPrescriptionFromVisitHtml(sourceHtml));
       }
       function updatePreviewButtonVisibility() {
