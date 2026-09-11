@@ -384,6 +384,7 @@
       .layout-editor { width: 100%; min-height: 124px; border: 1px solid #dde3de; border-radius: 14px; padding: 18px; background: #fff; font: inherit; font-size: 18px; line-height: 1.45; outline: none; resize: vertical; }
       .layout-editor:focus, .layout-card .credentials-editor:focus { border-color: #8fbeb3; box-shadow: 0 0 0 4px rgba(22, 131, 113, .14); }
       .layout-card .credentials-editor { min-height: 124px; border-color: #8fbeb3; border-radius: 14px; padding: 18px; font-size: 18px; line-height: 1.45; }
+      .clinic-title-card .credentials-editor { min-height: 72px; }
       .layout-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 18px 24px; margin-top: 16px; }
       .layout-option { display: inline-flex; align-items: center; gap: 10px; color: #6d776f; font-size: 16px; font-weight: 850; }
       .layout-option input, .settings-check input { appearance: none; -webkit-appearance: none; width: 22px; height: 22px; min-width: 22px; min-height: 22px; margin: 0; border: 2px solid #89918b; border-radius: 4px; background: #fff; display: inline-block; position: relative; flex: 0 0 22px; vertical-align: middle; }
@@ -855,10 +856,6 @@
           <div class="home-menu" id="homeMenu">
             <button class="secondary" id="homeMenuBtn" type="button" aria-expanded="false">Home <span class="home-chevron">▾</span></button>
             <nav class="home-dropdown" aria-label="Main">
-              <button class="secondary active" data-scroll="today" type="button">Today</button>
-              <button class="secondary" type="button" id="openAddPatientNavBtn" data-feature="staff">Add Patient</button>
-              <button class="secondary" data-scroll="after" type="button">After Consultation</button>
-              <button class="secondary" data-scroll="followup" data-feature="followup" type="button">Follow-up List</button>
               <button class="secondary" data-scroll="report" data-feature="finance" type="button">Monthly Report</button>
               <button class="secondary" type="button" data-main-tab="whatsapp" data-feature="whatsapp">WhatsApp Preview</button>
               <button class="secondary" type="button" id="openSettingsBtn">Settings</button>
@@ -1110,8 +1107,9 @@
               </span>
               <input id="malayalamInstructionsToggle" type="checkbox" />
             </label>
-            <label class="settings-block settings-hidden">
-              Clinic credentials shown on home page
+            <label class="layout-card clinic-title-card">
+              <span class="layout-card-title">Clinic title</span>
+              <div id="clinicName" class="credentials-editor" contenteditable="true" role="textbox" aria-label="Clinic title" data-placeholder="Clinic title"></div>
               <div class="settings-toolbar" aria-label="Clinic name formatting">
                 <button class="secondary" type="button" data-clinic-name-format="bold"><b>B</b></button>
                 <button class="secondary" type="button" data-clinic-name-format="italic"><i>I</i></button>
@@ -1130,7 +1128,6 @@
                   <input id="clinicNameColor" type="color" value="#17222b" />
                 </label>
               </div>
-              <div id="clinicName" class="credentials-editor" contenteditable="true" role="textbox" aria-label="Clinic name" data-placeholder="Clinic name"></div>
             </label>
             <label class="layout-card">
               <span class="layout-card-title">Header</span>
@@ -8272,7 +8269,7 @@ Treatment / Advice:
           return;
         }
         if (button.id === "openDoctorMobileAddPatientBtn") openDoctorBlankMedicalRecord();
-        if (button.id === "openAddPatientBtn" || button.id === "openAddPatientNavBtn") openAddPatientModal();
+        if (button.id === "openAddPatientBtn") openAddPatientModal();
         if (button.id === "closeAddPatientBtn") closeAddPatientModal();
         if (button.id === "closeEditPatientBtn") closeEditPatientModal();
         if (button.id === "deleteEditPatientBtn") {
