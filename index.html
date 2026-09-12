@@ -1096,7 +1096,7 @@
             <div class="prescription-layout-head">
               <div>
                 <h2>Prescription layout</h2>
-                <p>Set the header, footer/advice, and signature text used when printing prescriptions from Rx.</p>
+                <p>Set the header, footer/advice, and signature text used when printing prescriptions.</p>
               </div>
               <button class="secondary prescription-layout-close" type="button" id="closeSettingsBtn" aria-label="Close settings">×</button>
             </div>
@@ -1454,7 +1454,7 @@ Consultant Neurologist</textarea>
       const deviceIdStore = "clinicApprovedDeviceId.v1";
       const ambientModes = {
         visit: "Visit Note",
-        prescription: "Rx",
+        prescription: "Prescription",
         certificate: "Certificate",
         reply: "Letter"
       };
@@ -2627,7 +2627,12 @@ Consultant Neurologist</textarea>
       function patientMedicalRecords(patient) {
         return medicalRecords
           .filter((record) => recordMatchesPatient(record, patient))
+          .filter((record) => !isQueuedPrescriptionRecord(record))
           .sort((a, b) => recordTimestamp(b).localeCompare(recordTimestamp(a)));
+      }
+      function isQueuedPrescriptionRecord(record) {
+        if ((record?.recordKind || "visit") !== "prescription") return false;
+        return Boolean(record.sourceRecordId || String(record.id || "").endsWith("_prescription"));
       }
       function hasMedicalNoteForPatientDate(patient) {
         const day = patient.date;
@@ -2891,7 +2896,7 @@ Consultant Neurologist</textarea>
       function ambientFloatModeLabel(mode = activeAmbientMode) {
         return {
           visit: "Visit note",
-          prescription: "Rx",
+          prescription: "Prescription",
           certificate: "Certificate",
           reply: "Letter",
           addon: "Review Note"
@@ -6374,7 +6379,7 @@ Treatment / Advice:
                   ${escapeHtml(dateText)}
                 </div>
               </div>
-              <div class="prescription-rx-title">Rx / ADVICE</div>
+              <div class="prescription-rx-title">PRESCRIPTION / ADVICE</div>
               ${medicineRows ? `<div class="prescription-list">${medicineRows}</div>` : `<div>${html}</div>`}
               ${instructionRows ? `<div class="prescription-instructions"><h2>Instructions</h2>${instructionRows}</div>` : ""}
               <div class="prescription-alert">
